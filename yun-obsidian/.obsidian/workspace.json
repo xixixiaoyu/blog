@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "计算机运行的本质.md",
-                "mode": "source",
+                "file": "随笔/十个道理.md",
+                "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "计算机运行的本质"
+              "title": "十个道理"
             }
           }
         ]
@@ -174,8 +174,18 @@
   },
   "active": "fd2ace304da226d3",
   "lastOpenFiles": [
+    "前端/vue 为什么不需要 react 时间切片调度？.md",
+    "计算机通识/“加法器”、“比较器”、“寄存器”.md",
+    "随笔/十个道理.md",
+    "计算机通识/计算机运行的本质.md",
+    "随笔",
+    "未命名.canvas",
+    "前端",
+    "但计算机选择的是最稳定、最可靠的两种.md",
+    "().md",
+    "计算机通识",
+    "计算机通识/Pasted image 20251002154808.png",
     "Pasted image 20251002152105.png",
-    "计算机运行的本质.md",
     "copilot/copilot-custom-prompts/Rewrite as tweet thread.md",
     "copilot/copilot-custom-prompts/Rewrite as tweet.md",
     "copilot/copilot-custom-prompts/Remove URLs.md",
@@ -196,15 +206,11 @@
     "Vue.js设计与实现.pdf",
     "Vue.js设计与实现.pdf.md",
     "vue 为什么不需要 react 时间切片.md",
-    "未命名.canvas",
     "未命名 1.canvas",
     "未命名 5.base",
     "未命名 4.base",
     "未命名 3.base",
-    "未命名 1.base",
-    "未命名 2.base",
     "Welcome.md",
-    "Untitled.base",
     "create a link.md"
   ]
 }
