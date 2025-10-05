@@ -4,17 +4,17 @@
     "type": "split",
     "children": [
       {
-        "id": "9dd0310521e1862c",
+        "id": "7ed8113a9458c69a",
         "type": "tabs",
         "children": [
           {
-            "id": "fd2ace304da226d3",
+            "id": "c3568d082ad79b64",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
                 "file": "前端/vue 为什么不需要 react 时间切片调度？.md",
-                "mode": "preview",
+                "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
@@ -78,8 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 300
   },
   "right": {
     "id": "47651d2566eec55b",
@@ -173,8 +172,17 @@
       "file-cleaner-redux:Clean files": false
     }
   },
-  "active": "fd2ace304da226d3",
+  "active": "c3568d082ad79b64",
   "lastOpenFiles": [
+    "前端/attachments/Pasted image 20251005110835.png",
+    "前端/attachments/Pasted image 20251005110807.png",
+    "前端/attachments/Pasted image 20251005110752.png",
+    "前端/attachments/Pasted image 20251005110550.png",
+    "前端/vue 为什么不需要 react 时间切片调度？.md",
+    "前端/attachments/Pasted image 20251005110949.png",
+    "前端/attachments/Pasted image 20251005111012.png",
+    "跨端/大型小程序的高效通信与更新架构.md",
+    "前端/attachments",
     "跨端/小程序数据机制及优化方案.md",
     "跨端/WebView 核心架构设计.md",
     "跨端/WebView 通信设计.md",
@@ -185,7 +193,6 @@
     "随笔/十个道理.md",
     "跨端",
     "计算机通识/编程的本质.md",
-    "前端/vue 为什么不需要 react 时间切片调度？.md",
     "计算机通识/“加法器”、“比较器”、“寄存器”.md",
     "随笔",
     "未命名.canvas",
@@ -212,9 +219,6 @@
     "2025-10-02.md",
     "未命名.base",
     "Vue.js设计与实现.pdf",
-    "Vue.js设计与实现.pdf.md",
-    "vue 为什么不需要 react 时间切片.md",
-    "未命名 1.canvas",
-    "未命名 5.base"
+    "未命名 1.canvas"
   ]
 }
