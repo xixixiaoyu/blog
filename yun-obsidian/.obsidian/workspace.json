@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "AI/模型真的有理解吗.md",
+                "file": "前端/vue 为什么不需要 react 时间切片调度？.md",
                 "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "模型真的有理解吗"
+              "title": "vue 为什么不需要 react 时间切片调度？"
             }
           }
         ]
@@ -95,7 +95,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "AI/模型真的有理解吗.md",
+                "file": "前端/vue 为什么不需要 react 时间切片调度？.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -105,7 +105,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "模型真的有理解吗 的反向链接列表"
+              "title": "vue 为什么不需要 react 时间切片调度？ 的反向链接列表"
             }
           },
           {
@@ -142,13 +142,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "AI/模型真的有理解吗.md",
+                "file": "前端/vue 为什么不需要 react 时间切片调度？.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "模型真的有理解吗 的大纲"
+              "title": "vue 为什么不需要 react 时间切片调度？ 的大纲"
             }
           }
         ],
@@ -175,14 +175,25 @@
   },
   "active": "161321a8fd93f8fd",
   "lastOpenFiles": [
-    "AI/大模型的训练过程和运行原理.md",
+    "前端/attachments/Pasted image 20251008211240.png",
+    "前端/attachments/Pasted image 20251008194101.png",
+    "前端/attachments/Pasted image 20251008192444.png",
+    "前端/attachments/Pasted image 20251008190926.png",
+    "前端/attachments/Pasted image 20251008190648.png",
+    "前端/attachments/Pasted image 20251008103730.png",
+    "前端/attachments/Pasted image 20251008093928.png",
+    "前端/attachments/Pasted image 20251008085841.png",
+    "前端/attachments/Pasted image 20251008085751.png",
+    "前端/attachments/Pasted image 20251008013000.png",
+    "前端/attachments/Pasted image 20251008012754.png",
+    "跨端/小程序的渲染机制.md",
     "AI/模型真的有理解吗.md",
+    "AI/大模型的训练过程和运行原理.md",
     "前端/vue 为什么不需要 react 时间切片调度？.md",
     "跨端/WebView 核心架构设计.md",
     "随笔/十个道理.md",
     "考研",
     "考研",
-    "跨端/小程序的渲染机制.md",
     "AI",
     "计算机通识/计算机运行的本质.md",
     "跨端/WebView 通信设计.md",
@@ -190,19 +201,9 @@
     "跨端/小程序数据机制及优化方案.md",
     "计算机通识/“加法器”、“比较器”、“寄存器”.md",
     "计算机通识/编程的本质.md",
-    "跨端/attachments/Pasted image 20251005232413.png",
-    "跨端/attachments/Pasted image 20251005232411.png",
     "跨端/attachments",
-    "前端/attachments/Pasted image 20251005110835.png",
-    "前端/attachments/Pasted image 20251005110807.png",
-    "前端/attachments/Pasted image 20251005110752.png",
-    "前端/attachments/Pasted image 20251005110550.png",
-    "前端/attachments/Pasted image 20251005110949.png",
-    "前端/attachments/Pasted image 20251005111012.png",
     "前端/attachments",
-    "计算机通识/attachments/Pasted image 20251004101544.png",
     "计算机通识/attachments",
-    "计算机通识/Pasted image 20251002154808.png",
     "跨端",
     "随笔",
     "未命名.canvas",

@@ -3,26 +3,24 @@
 在 React 16 之前，React 的更新是“一口气做完”的。当状态变化时，React 会递归遍历整个组件树，进行 diff 算法，然后一次性更新 DOM。
 这个过程是同步且不可中断的。如果组件树很庞大，这个递归过程就会耗时很长，浏览器主线程被完全占用，用户的所有交互（点击、输入）都会被卡住，直到渲染完成。
 ```jsx
-// 优化后的示例，更聚焦于单次更新的成本
+// 这是一个典型的“卡顿”制造者
 class ComplexComponent extends React.Component {
   state = {
-    // 假设这是一个包含上千个项目的数组
-    // generateLargeList() 是一个用于生成大型数组的辅助函数
-    items: generateLargeList(), 
+    // 假设这是一个包含上千个项目的列表
+    items: generateLargeList(),
+    filterText: '',
   };
-  
+
+  // 用户的每一次输入，都会触发一次可能非常耗时的全列表重新渲染
   handleFilter = (e) => {
-    // 用户的每一次输入，都会触发一次可能非常耗时的全列表重新渲染
-    this.setState({
-      filterText: e.target.value
-    });
+    this.setState({ filterText: e.target.value });
   };
-  
+
   render() {
     const filteredItems = this.state.items.filter(
       item => item.text.includes(this.state.filterText)
     );
-    
+
     return (
       <div>
         <input onChange={this.handleFilter} />
@@ -44,39 +42,40 @@ class ComplexComponent extends React.Component {
 帧 6: |---------------------------------------|
 帧 7: |---- (React 更新结束) ----| 处理用户点击 | 绘制 |
 ```
-为了让用户感觉流畅，浏览器需要以每秒 60 帧的速度刷新屏幕。这意味着，每一帧的预算时间大约是 `1000ms / 60 ≈ 16.67ms`。浏览器必须在这 16.67ms 内完成：
-- 运行 JavaScript 代码（包括 React 的更新逻辑）。
-- 计算 CSS 样式（Style）。
-- 进行页面布局（Layout）。
-- 绘制页面（Paint）。
-- 处理用户交互事件（点击、输入、滚动等）。
+为了让画面流畅，浏览器需要以每秒 60 帧的速度刷新，意味着每一帧的预算时间只有大约 16.67 毫秒。
+但上面这个 React 更新可能直接就霸占了 5-6 帧的时间，用户能感觉到的就是明显的掉帧和阻塞。
+![[Pasted image 20251008190648.png]]
+React 更新视图的原理：通过 setState 改变数据从而触发虚拟 DOM 去进行对比，对比结束后将再进行 DOM 更新。那么更新就会分成两部分：
+- 数据更新，触发虚拟 DOM 比较
+- 比较完成后更新真实 DOM 节点
 
-但是现在从第 1 帧到第 6 帧这将近 100ms 的时间里：
-- **用户交互被阻塞**：用户的点击、输入事件被放入了任务队列，只能眼巴巴地等着 React 更新完毕。
-- **页面渲染被阻塞**：浏览器没有机会去执行布局和绘制，页面看起来就像“冻住”了。
-- **严重掉帧**：本应发生的 5-6 次屏幕刷新都丢失了，这就是我们感知到的**卡顿**。
+当对比少的节点时使用这种方法时比较合理的，但是当我们一次更新有几百个甚至更多组件需要进行对比时，由于 Diff 是一个**同步**的方法，在进行对比时，由于 JS 单线程的原因，导致其他的事件都**无法响应**。
 
 **Fiber 的诞生，就是为了打破这种“一口气做完”的模式。**
 Fiber 本质上是一个 JavaScript 对象，它代表了一个组件（或其他工作单元）的信息。
-更重要的是，它通过 child、sibling、return 指针，将传统的树形结构“链表化”。这使得 React 可以**不再使用无法中断的递归方式来遍历组件树，而是改成一个可以随时暂停和恢复的循环迭代**。你可以在处理完任何一个 Fiber 节点后，记录下当前的位置，然后随时把主线程交还给浏览器。
+更重要的是，它通过 child、sibling、return 指针，将传统的树形结构“链表化”。
+这使得 React 可以**不再使用无法中断的递归方式来遍历组件树，而是改成一个可以随时暂停和恢复的循环迭代**。
+你可以在处理完任何一个 Fiber 节点后，记录下当前的位置，然后随时把主线程交还给浏览器。
 ```js
 // 一个极度简化的 Fiber 节点结构
 const fiberNode = {
-  // 组件类型
+  // 组件类型，比如 'div' 或一个函数组件
   type: 'div',
-  // 组件实例（如类组件的实例）
+  // 组件实例，如类组件实例或 DOM 节点
   stateNode: null,
-  // 指向第一个子节点
+  // 指向第一个子 Fiber 节点
   child: null,
-  // 指向下一个兄弟节点
+  // 指向下一个兄弟 Fiber 节点
   sibling: null,
-  // 指向父节点
+  // 指向父 Fiber 节点
   return: null,
-  // ... 其他状态信息，如 props、state、副作用等
-}
+  // ... 其他包含 props、state、副作用（即需要做的更新）等信息
+};
 ```
-链表可以**随时暂停和恢复**。你不需要像递归那样必须走到最深处才能返回。下次再继续时，从记录的位置拿起来接着干就行。
-**所以，Fiber 的核心贡献是：将渲染工作从“不可中断的递归调用”变成了“可中断的链表遍历”。它为时间切片提供了物理基础。**
+![[Pasted image 20251008190926.png]]
+链表结构是可以随时暂停和恢复的。
+React 不再需要用无法中断的递归去遍历树，而是可以采用一个循环。每处理完一个 Fiber 节点，它都可以检查一下时间，如果时间紧张，就立刻记录下当前的工作进度，把主线程还给浏览器。等浏览器忙完了，再从上次中断的地方继续“玩”下去。
+所以，Fiber 的核心贡献是：**将渲染工作从“不可中断的递归调用”变成了“可中断的链表遍历”**。它为后续的优化提供了物理基础。
 
 ### 1.2 时间切片：利用 Fiber 实现的调度策略
 有了 Fiber 这个可中断的基础设施，我们就可以实现“时间切片”了。
@@ -101,9 +100,12 @@ function shouldYieldToHost() {
   return currentTime >= deadline
 }
 ```
+这个“见缝插针”的过程，就是 React 的**调度**。它确保了即使是再复杂的更新，也不会完全霸占主线程，用户的交互总能得到及时的响应。
+setState -> diff -> render 的这样的线性流程，引入 **Fiber Reconciler** 之后：
 
 ### 1.3 并发机制：基于前两者的高级能力
-当我们既能将工作拆分（Fiber），又能控制工作的执行时机（时间切片）时，再引入**优先级**的概念，一个更强大的能力就诞生了：**并发**。
+![[Pasted image 20251008194101.png]]
+当 React 既能将工作拆分（Fiber），又能控制工作的执行时机（时间切片）时，一个更强大的能力就诞生了：**并发**。
 注意React 的并发并不是指真正的并行计算（因为 **JS 仍然是单线程的**），而是指 React 能够同时管理多个状态更新，并根据优先级智能地决定渲染顺序、暂停或恢复渲染任务的能力。
 **并发机制是 Fiber 和时间切片的“上层建筑”，它带来了革命性的新特性：**
 - **`startTransition`**：你可以告诉 React：“这个更新（比如搜索一个很长的列表）是不紧急的，可以慢慢来。” React 会在后台用时间切片的方式处理它。如果在此期间，有更紧急的更新（比如用户在输入框里打字），React 会**暂停**不紧急的渲染，优先处理紧急的更新，处理完后再**恢复**之前不紧急的渲染。这保证了用户交互的流畅性。
@@ -115,46 +117,130 @@ function shouldYieldToHost() {
 ## 2. Vue 的不同路径：精准更新
 ### 2.1 细粒度的响应式系统和高效的异步更新队列
 Vue 的响应式系统实现了**细粒度**的依赖追踪，其精度远超“组件级别”，可以直达模板中的**具体绑定**（如一个文本插值或一个属性）。
+![[Pasted image 20251008211240.png]]
 - **依赖收集：** 在组件首次渲染时，Vue 会像一个侦探，记录下模板中哪个“视图片段”使用了哪个“响应式数据”。这个过程通过 Proxy (Vue 3) 或 Object.defineProperty (Vue 2) 实现。
 - **精准更新：** 当一个响应式数据变化时，Vue 不会重新渲染整个组件。它会直接通知并重新执行那些“订阅”了该数据的**更新函数 (effect)**。这些函数只负责更新模板中那一小块依赖该数据的 DOM。
 
 所以因为更新任务从一开始就是最小化的、分散的，所以每个任务的执行成本极低。Vue 只需要通过 nextTick 将同一事件循环中的多个小任务合并，进行一次批处理即可。这个过程本身就非常高效，几乎不会长时间阻塞主线程，因此也就不需要引入“时间切片”这种复杂的调度机制来打断它。
 
 而 React 的模型不同，当一个组件的状态发生变化时，React 会**从这个组件开始，向下遍历其子组件树**，进行新旧 Virtual DOM 的对比（这个过程称为 Reconciliation）。虽然开发者可以手动通过 `React.memo`、`PureComponent` 或 `shouldComponentUpdate`、`useMemo`、`useCallback` 等 API 手动进行优化，跳过那些没有必要更新的子树，但其核心思想是“通过比对找出差异”。
-这就像你只知道城里某个街区（触发更新的组件）有情况，但需要把这个街区挨家挨-户盘问一遍才能确定具体问题。如果这个街区很大（组件树很深或很宽），盘问过程依然会很耗时。**而这种“地毯式排查”的模式，其根本原因在于 React 的状态是不可变的（Immutable）**：当状态变化时，React 只知道状态对象变了，但无法精确知道是哪个属性变了，因此需要通过 Diff 来寻找差异。
+这就像你只知道城里某个街区（触发更新的组件）有情况，但需要把这个街区挨家挨户盘问一遍才能确定具体问题。如果这个街区很大（组件树很深或很宽），盘问过程依然会很耗时。**而这种“地毯式排查”的模式，其根本原因在于 React 的状态是不可变的（Immutable）**：当状态变化时，React 只知道状态对象变了，但无法精确知道是哪个属性变了，因此需要通过 Diff 来寻找差异。
 ```js
-// 这是一个极度简化的 Vue 响应式原理示意
-const state = new Proxy({ count: 0 }, {
-  get(target, key) {
-    // 依赖收集：记录当前正在渲染的组件依赖了 key
-    track(target, key)
-    return target[key]
-  },
-  set(target, key, value) {
-    target[key] = value
-    // 派发更新：直接通知所有依赖 key 的组件
-    trigger(target, key)
-    // 注意：这里只是通知，真正的更新是异步批处理的
-  }
-})
+// --- 全局变量和数据结构 ---
+let activeEffect;
+const effectStack = [];
+const bucket = new WeakMap();
 
-function trigger(target, key) {
-  // 找到所有依赖 key 的组件更新函数
-  const effects = depsMap.get(key)
-  effects.forEach(effect => {
-    // 将更新函数放入一个队列，而不是立即执行
-    queueJob(effect)
-  })
+// 新增：任务队列，用 Set 自动去重
+const jobQueue = new Set();
+// 新增：一个标志位，防止重复刷新
+let isFlushing = false;
+
+// --- 核心函数 ---
+function reactive(obj) {
+  return new Proxy(obj, {
+    get(target, key) {
+      track(target, key);
+      return target[key];
+    },
+    set(target, key, value) {
+      target[key] = value;
+      trigger(target, key); // set 时触发 trigger
+      return true;
+    }
+  });
 }
 
-// Vue 的调度器会异步处理这个队列
-function queueJob(job) {
-  // 使用 nextTick 等微任务，将同一个 tick 内的所有更新合并
-  // 最终只触发一次渲染
-  nextTick(job)
+function track(target, key) {
+  if (!activeEffect) return;
+  let depsMap = bucket.get(target);
+  if (!depsMap) {
+    bucket.set(target, (depsMap = new Map()));
+  }
+  let deps = depsMap.get(key);
+  if (!deps) {
+    depsMap.set(key, (deps = new Set()));
+  }
+  deps.add(activeEffect);
+  activeEffect.deps.push(deps);
+}
+
+/**
+ * trigger 函数的重大升级
+ */
+function trigger(target, key) {
+  const depsMap = bucket.get(target);
+  if (!depsMap) return;
+  const effects = depsMap.get(key);
+  if (!effects) return;
+
+  const effectsToRun = new Set();
+  effects.forEach(effectFn => {
+    // 避免无限递归
+    if (effectFn !== activeEffect) {
+      effectsToRun.add(effectFn);
+    }
+  });
+
+  effectsToRun.forEach(effectFn => {
+    // 如果用户提供了自定义调度器，则优先使用
+    if (effectFn.options.scheduler) {
+      effectFn.options.scheduler(effectFn);
+    } else {
+      // 否则，使用我们默认的基于微任务的调度逻辑
+      // 将副作用函数添加到任务队列
+      jobQueue.add(effectFn);
+      // 安排刷新任务
+      flushJob();
+    }
+  });
+}
+
+/**
+ * 新增：刷新任务队列的函数
+ */
+function flushJob() {
+  // 如果正在刷新，则什么也不做
+  if (isFlushing) return;
+  isFlushing = true;
+
+  // 使用 Promise.resolve() 创建一个微任务，在微任务中刷新队列
+  Promise.resolve()
+    .then(() => {
+      // 遍历并执行队列中的所有任务
+      jobQueue.forEach(job => job());
+    })
+    .finally(() => {
+      // 刷新完毕后，重置标志位并清空队列
+      isFlushing = false;
+      jobQueue.clear();
+    });
+}
+
+function effect(fn, options = {}) {
+  const effectFn = () => {
+    cleanup(effectFn);
+    activeEffect = effectFn;
+    effectStack.push(effectFn);
+    fn();
+    effectStack.pop();
+    activeEffect = effectStack[effectStack.length - 1];
+  };
+  effectFn.options = options;
+  effectFn.deps = [];
+  effectFn();
+}
+
+function cleanup(effectFn) {
+  for (let i = 0; i < effectFn.deps.length; i++) {
+    const deps = effectFn.deps[i];
+    deps.delete(effectFn);
+  }
+  effectFn.deps.length = 0;
 }
 ```
-
+![[Pasted image 20251008085841.png]]
+WeakMap 的键是原始对象 target，WeakMap 的值是一个 Map 实例，而 Map 的键是原始对象 target 的 key，Map 的值是一个 由副作用函数组成的 Set。
 
 ### 2.2 编译时优化
 Vue 是少数将编译时优化作为核心性能策略的主流框架之一。
@@ -163,8 +249,52 @@ Vue的编译器在将模板（template）编译成渲染函数（render function
 - **静态内容提升**：编译器识别出模板中永远不会改变的部分（静态节点），并将其提升到渲染函数之外，后续更新时完全跳过这些节点。
 - **更新类型标记**：编译器为动态节点打上"标记"（Patch Flag），**（例如，标记 1 代表这个节点只有文本内容会变，标记 8 代表只有 class 会变）**，告诉运行时 diff 算法只需比对特定属性，避免全量树比对。
 - **事件处理缓存**：编译器自动缓存内联事件处理器，避免每次渲染时都创建新的函数实例，优化内存占用和更新性能。
+Vue SFC Plauground 地址：[https://play.vuejs.org/](https://play.vuejs.org/)
+![[Pasted image 20251008103730.png]]
+```javascript
+const _hoisted_1 = { class: "container" }
+```
+**静态内容提升 (`_hoisted_1`)**：编译器发现 `<div>` 的 `class` 是一个静态对象，所以把它提升到了 `render` 函数外面。在 `render` 函数里，直接复用 `_hoisted_1`，避免了每次都创建一个新对象 `{ class: "container" }`，很细节。
+```js
+_createElementVNode("span", null, _toDisplayString($setup.message), 1 /* TEXT */)
+```
+**更新类型标记 (`Patch Flag`)**：`1 /* TEXT */` 标记告诉 Vue：“这个节点只有文本会变，diff 的时候别费劲比对了，直接更新文本就行。
+```js
+_createElementVNode("button", {
+  onClick: _cache[0] || (_cache[0] = () => $setup.message.value++)
+}, "Click me (Inline)")
+```
+**事件处理缓存**：利用了 JavaScript 的“短路求值”。
+- **第一次渲染**：`_cache[0]` 为空，创建新函数并存入。
+- **后续渲染**：直接复用 `_cache[0]` 里的函数，不再重复创建。
 
-这些由编译器提供的优化，使得 Vue 的虚拟DOM更新过程比传统的手动优化或纯运行时的虚拟 DOM diff 要快得多。这进一步巩固了 Vue 的性能优势，使得单次更新任务的执行时间被压缩到极短，从而降低了对时间切片这种复杂调度策略的需求。
+这些由编译器提供的优化，使得 Vue 的虚拟 DOM 更新过程比传统的手动优化或纯运行时的虚拟 DOM diff 要快得多。这进一步巩固了 Vue 的性能优势，使得单次更新任务的执行时间被压缩到极短，从而降低了对时间切片这种复杂调度策略的需求。
+我们继续来看看 React JSX “真面目”：
+**访问地址**：[https://babeljs.io/repl](https://babeljs.io/repl)
+![[Pasted image 20251008093928.png]]
+- `className: "container"`  每次渲染，都会创建一个新的 `{ className: "container" }` 对象字面量。
+- `_jsx("span", { children: message })`  没有标记，React diff 时需要比对。
+- `onClick: () => setMessage('Clicked!')`  每次渲染，都会创建一个全新的箭头函数！
+
+这就是为什么你需要 `React.memo`、`useCallback` 和 `useMemo` 这些“手动工具箱”的原因。
+Vue 的 `template` 是一套受限的、声明式的 DSL（领域特定语言）。
+而 JSX 本质上是 `JavaScript`。这意味着在 JSX 的花括号 `{}` 里，你可以放**任何合法的 JavaScript 表达式**。
+```jsx
+function MyComponent(props) {
+  const dynamicProps = getSomeProps(props.id) // 返回值完全不确定
+  const children = props.condition ? <A /> : <B /> // 动态组件
+
+  return (
+    <div {...dynamicProps}>
+      {children}
+    </div>
+  )
+}
+```
+对于 Babel 这样的编译工具来说，`getSomeProps` 会返回什么？`props.condition` 在运行时是 `true` 还是 `false`？它完全不知道。
+它只能忠实地将 JSX 转换成 `React.createElement` 的调用，把所有的判断和计算都留到运行时去执行。
+其实 React 团队也早已意识到了手动优化的心智负担问题，所以开发了 **React Compiler**（以前叫 Forget），它会尝试去分析你的 JavaScript 代码，**推断**出哪些部分是稳定的，自动为你加上 `React.memo`, `useCallback`, `useMemo`。
+
 
 ## 3. 历史佐证：Vue 对时间切片的探索
 Vue 的开发团队确实曾经尝试并实现过时间切片功能。
@@ -179,11 +309,6 @@ https://github.com/vuejs/rfcs/issues/89#issuecomment-546988615
 3. React 更新**更容易花费超过 100 毫秒的纯 CPU 时间**。
 4. Vue 通过**更简单的 VDOM**、**编译时优化（AOT）**、**智能的响应式更新**从源头避免了过度消耗。
 5. 时间切片本身还会导致**框架复杂度飙升**，**包体积增大**。
-
-
-
-
-
 
 
 ## 结论
