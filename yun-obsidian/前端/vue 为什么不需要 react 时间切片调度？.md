@@ -44,7 +44,7 @@ class ComplexComponent extends React.Component {
 ```
 为了让画面流畅，浏览器需要以每秒 60 帧的速度刷新，意味着每一帧的预算时间只有大约 16.67 毫秒。
 但上面这个 React 更新可能直接就霸占了 5-6 帧的时间，用户能感觉到的就是明显的掉帧和阻塞。
-![[Pasted image 20251008190648.png]]
+![[Pasted image 20251009020845.png]]
 React 更新视图的原理：通过 setState 改变数据从而触发虚拟 DOM 去进行对比，对比结束后将再进行 DOM 更新。那么更新就会分成两部分：
 - 数据更新，触发虚拟 DOM 比较
 - 比较完成后更新真实 DOM 节点
@@ -52,7 +52,7 @@ React 更新视图的原理：通过 setState 改变数据从而触发虚拟 DOM
 当对比少的节点时使用这种方法时比较合理的，但是当我们一次更新有几百个甚至更多组件需要进行对比时，由于 Diff 是一个**同步**的方法，在进行对比时，由于 JS 单线程的原因，导致其他的事件都**无法响应**。
 
 **Fiber 的诞生，就是为了打破这种“一口气做完”的模式。**
-Fiber 本质上是一个 JavaScript 对象，它代表了一个组件（或其他工作单元）的信息。
+Fiber 本质上是一个 JavaScript 对象，**是一个为可中断渲染而设计的链表化数据结构，它将 React 元素树上的每一个节点都封装成一个独立的工作单元。**
 更重要的是，它通过 child、sibling、return 指针，将传统的树形结构“链表化”。
 这使得 React 可以**不再使用无法中断的递归方式来遍历组件树，而是改成一个可以随时暂停和恢复的循环迭代**。
 你可以在处理完任何一个 Fiber 节点后，记录下当前的位置，然后随时把主线程交还给浏览器。
@@ -72,47 +72,64 @@ const fiberNode = {
   // ... 其他包含 props、state、副作用（即需要做的更新）等信息
 };
 ```
-![[Pasted image 20251008190926.png]]
+![[Pasted image 20251009021142.png]]
 链表结构是可以随时暂停和恢复的。
-React 不再需要用无法中断的递归去遍历树，而是可以采用一个循环。每处理完一个 Fiber 节点，它都可以检查一下时间，如果时间紧张，就立刻记录下当前的工作进度，把主线程还给浏览器。等浏览器忙完了，再从上次中断的地方继续“玩”下去。
+React 不再需要用无法中断的递归去遍历树，而是可以采用一个循环。每处理完一个 Fiber 节点，它都可以检查一下时间，如果时间紧张，就立刻记录下当前的工作进度，把主线程还给浏览器。等浏览器忙完了，再从上次中断的地方继续。
+![[Pasted image 20251009022607.png]]
+前面 setState -> diff -> render 的这样的线性流程，引入 **Fiber Reconciler** 之后：**setState -> Render Phase (可中断的 diff/reconciliation) -> Commit Phase (同步的 DOM 更新/render)**
 所以，Fiber 的核心贡献是：**将渲染工作从“不可中断的递归调用”变成了“可中断的链表遍历”**。它为后续的优化提供了物理基础。
+![[Pasted image 20251009025806.png]]
+每处理一个 fiber 节点，都判断下是否中断，shouldYield 返回 true 的时候就终止这次循环。
 
 ### 1.2 时间切片：利用 Fiber 实现的调度策略
 有了 Fiber 这个可中断的基础设施，我们就可以实现“时间切片”了。
 因为 React 更新从根组件开始的“重新渲染 + Diff”过程依然可能是一个耗时较长的**纯计算任务**。
 如果这个任务长时间占用主线程，页面就会卡顿。“时间切片”正是为了解决这个问题而设计的：**它允许 React 将这个宏大的计算任务切分成小块，在执行间隙可以响应用户输入等更高优先级的事件，从而保证应用的流畅性**。这个过程在 React 中被称为“调度”。
-```js
-function workLoopConcurrent() {
-  // 只要还有下一个工作单元，并且当前时间片还没用完
-  while (nextUnitOfWork !== null && !shouldYieldToHost()) {
-    // 执行当前工作单元，并返回下一个要处理的工作单元
-    nextUnitOfWork = performUnitOfWork(nextUnitOfWork)
-  }
-}
-
-// 判断是否应该让出主线程
-function shouldYieldToHost() {
-  // 实际的调度器实现比这复杂得多，它会使用 MessageChannel 等方式
-  // 来检查主线程是否有待处理的用户输入等高优任务。
-  // 获取当前时间
-  const currentTime = getCurrentTime()
-  // 如果当前时间超过了本次渲染的截止时间，就应该让出
-  return currentTime >= deadline
-}
-```
-这个“见缝插针”的过程，就是 React 的**调度**。它确保了即使是再复杂的更新，也不会完全霸占主线程，用户的交互总能得到及时的响应。
-setState -> diff -> render 的这样的线性流程，引入 **Fiber Reconciler** 之后：
+![[Pasted image 20251009025432.png]]
+一个时间分片是 5ms，每次开始处理时记录个时间，如果处理完这个 fiber 节点，时间超了，那就打断。
 
 ### 1.3 并发机制：基于前两者的高级能力
-![[Pasted image 20251008194101.png]]
 当 React 既能将工作拆分（Fiber），又能控制工作的执行时机（时间切片）时，一个更强大的能力就诞生了：**并发**。
-注意React 的并发并不是指真正的并行计算（因为 **JS 仍然是单线程的**），而是指 React 能够同时管理多个状态更新，并根据优先级智能地决定渲染顺序、暂停或恢复渲染任务的能力。
+![[Pasted image 20251009030610.png]]
+上面是两个 setState 引起的两个渲染流程，先处理前面渲染的 fiber 节点，然后处理下面渲染的 fiber 节点，之后继续处理上面渲染的 fiber 节点。
+这就是并发。
 **并发机制是 Fiber 和时间切片的“上层建筑”，它带来了革命性的新特性：**
 - **`startTransition`**：你可以告诉 React：“这个更新（比如搜索一个很长的列表）是不紧急的，可以慢慢来。” React 会在后台用时间切片的方式处理它。如果在此期间，有更紧急的更新（比如用户在输入框里打字），React 会**暂停**不紧急的渲染，优先处理紧急的更新，处理完后再**恢复**之前不紧急的渲染。这保证了用户交互的流畅性。
-- **`Suspense`**：当一个组件需要等待异步数据时，它可以在渲染过程中“抛出”一个 Promise。React 捕获到这个 Promise 后，会**暂停**这个组件树的渲染，并显示一个 fallback UI（比如 loading）。当数据加载完成，Promise resolve，React 会**恢复**该组件树的渲染。这个过程完全依赖于 Fiber 的可中断特性。
 - **`useDeferredValue`**：与 `startTransition` 类似，它允许你延迟更新 UI 的某个部分。比如，一个输入框同时控制一个列表的筛选和一个图表的显示。你可以让图表的更新“延迟”，这样列表的筛选会感觉更即时。
-**所以，并发机制是建立在 Fiber 和时间切片之上的应用层能力。它让 React 能够智能地管理多个渲染任务，根据优先级进行调度、暂停、恢复甚至丢弃，从而打造出极致流畅的用户体验。**
+- **`Suspense`**：当一个组件需要等待异步数据时，它可以在渲染过程中“抛出”一个 Promise。React 捕获到这个 Promise 后，会**暂停**这个组件树的渲染，并显示一个 fallback UI（比如 loading）。当数据加载完成，Promise resolve，React 会**恢复**该组件树的渲染。这个过程完全依赖于 Fiber 的可中断特性。
 
+**所以，并发机制是建立在 Fiber 和时间切片之上的应用层能力。它让 React 能够智能地管理多个渲染任务，根据优先级进行调度、暂停、恢复甚至丢弃，从而打造出极致流畅的用户体验。**
+并发特性可以给不同的 setState 标上不同的优先级的，我们看看 `startTransition`：
+```jsx
+import React, { useTransition, useState } from "react";
+
+export default function App() {
+  const [text, setText] = useState('ye');
+  const [text2, setText2] = useState('che');
+
+  const [isPending, startTransition] = useTransition()
+
+  const handleClick = () => {
+    startTransition(() => {
+      setText('ye2');
+    });
+
+    setText2('che2');
+  }
+
+  return (
+    <button onClick={handleClick}>{text}{text2}</button>
+  );
+}
+```
+上面有两个 setState，其中一个优先级高，另一个优先级低，那就把低的那个用 `startTransition` 包裹起来。
+上面谈到的优先级是调度任务的优先级，有这 5 种：
+![[Pasted image 20251009023523.png]]
+- **NoPriority**：默认初始值，表示“当前没有任务”或“任务已完成”。实际任务不会以 `NoPriority` 被调度。
+- **Immediate**: 对应离散的用户行为，如 click, keydown, input。这些操作用户期望立即得到反馈，因此优先级最高。
+- **UserBlocking**: 对应连续的用户行为，如 scroll, drag, mouseover。这些操作会频繁触发，如果每次都以最高优先级执行，可能会阻塞渲染，但它们也需要及时响应，否则用户会感到卡顿。所以它的优先级仅次于 Immediate。
+- **NormalPriority**：网络请求返回后的数据更新、非关键的 setState。比如，页面加载后，通过 useEffect 获取文章列表并更新到界面上。
+- **LowPriority**：数据预取（比如预加载下一页的数据）、分析和日志上报等。
 
 ## 2. Vue 的不同路径：精准更新
 ### 2.1 细粒度的响应式系统和高效的异步更新队列
@@ -131,9 +148,9 @@ let activeEffect;
 const effectStack = [];
 const bucket = new WeakMap();
 
-// 新增：任务队列，用 Set 自动去重
+// 任务队列，用 Set 自动去重
 const jobQueue = new Set();
-// 新增：一个标志位，防止重复刷新
+// 一个标志位，防止重复刷新
 let isFlushing = false;
 
 // --- 核心函数 ---
@@ -165,9 +182,6 @@ function track(target, key) {
   activeEffect.deps.push(deps);
 }
 
-/**
- * trigger 函数的重大升级
- */
 function trigger(target, key) {
   const depsMap = bucket.get(target);
   if (!depsMap) return;
@@ -240,7 +254,7 @@ function cleanup(effectFn) {
 }
 ```
 ![[Pasted image 20251008085841.png]]
-WeakMap 的键是原始对象 target，WeakMap 的值是一个 Map 实例，而 Map 的键是原始对象 target 的 key，Map 的值是一个 由副作用函数组成的 Set。
+WeakMap 的键是原始对象 target，值是一个 Map 实例，而 Map 的键是原始对象 target 的 key，Map 的值是一个 由副作用函数组成的 Set。
 
 ### 2.2 编译时优化
 Vue 是少数将编译时优化作为核心性能策略的主流框架之一。
@@ -279,22 +293,9 @@ _createElementVNode("button", {
 这就是为什么你需要 `React.memo`、`useCallback` 和 `useMemo` 这些“手动工具箱”的原因。
 Vue 的 `template` 是一套受限的、声明式的 DSL（领域特定语言）。
 而 JSX 本质上是 `JavaScript`。这意味着在 JSX 的花括号 `{}` 里，你可以放**任何合法的 JavaScript 表达式**。
-```jsx
-function MyComponent(props) {
-  const dynamicProps = getSomeProps(props.id) // 返回值完全不确定
-  const children = props.condition ? <A /> : <B /> // 动态组件
-
-  return (
-    <div {...dynamicProps}>
-      {children}
-    </div>
-  )
-}
-```
-对于 Babel 这样的编译工具来说，`getSomeProps` 会返回什么？`props.condition` 在运行时是 `true` 还是 `false`？它完全不知道。
-它只能忠实地将 JSX 转换成 `React.createElement` 的调用，把所有的判断和计算都留到运行时去执行。
 其实 React 团队也早已意识到了手动优化的心智负担问题，所以开发了 **React Compiler**（以前叫 Forget），它会尝试去分析你的 JavaScript 代码，**推断**出哪些部分是稳定的，自动为你加上 `React.memo`, `useCallback`, `useMemo`。
-
+**Svelte** 采取了更激进的编译策略：它既用类似模板的语法（但比 Vue 更接近 JS），又在编译时生成极致优化的命令式代码。它证明了“编译时框架”可以做到比 Vue 更彻底的优化，但代价是**运行时更薄、编译器更重、生态更封闭**。
+React 选择了一条更通用、更兼容现有 JS 生态的路，所以它的编译优化注定是“渐进式”的。
 
 ## 3. 历史佐证：Vue 对时间切片的探索
 Vue 的开发团队确实曾经尝试并实现过时间切片功能。
