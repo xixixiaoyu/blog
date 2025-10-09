@@ -4,6 +4,9 @@
   "Components@@vault-profile-autohide": false,
   "Appearance-light@@card-layout-open-light": true,
   "Appearance-dark@@card-layout-open-dark": true,
-  "Editor@@line-height-customize": 1.8,
-  "Editor@@text-align-justify": true
+  "Editor@@line-height-customize": 2,
+  "Editor@@text-align-justify": true,
+  "Editor@@p-spacing-br": true,
+  "Editor@@file-line-width": "800px",
+  "Editor@@p-spacing": "1em"
 }
