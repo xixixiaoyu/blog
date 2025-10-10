@@ -78,8 +78,6 @@ const fiberNode = {
 ![[Pasted image 20251009021142.png]]
 链表结构是可以随时暂停和恢复的。
 React 不再需要用无法中断的递归去遍历树，而是可以采用一个循环。每处理完一个 Fiber 节点，它都可以检查一下时间，如果时间紧张，就立刻记录下当前的工作进度，把主线程还给浏览器。等浏览器忙完了，再从上次中断的地方继续。
-![[Pasted image 20251009022607.png]]
-前面 setState -> diff -> render 的这样的线性流程，引入 **Fiber Reconciler** 之后：**setState -> Render Phase (可中断的 diff/reconciliation) -> Commit Phase (同步的 DOM 更新/render)**
 所以，Fiber 的核心贡献是：**将渲染工作从“不可中断的递归调用”变成了“可中断的链表遍历”**。它为后续的优化提供了物理基础。
 ![[Pasted image 20251009025806.png]]
 每处理一个 fiber 节点，都判断下是否中断，shouldYield 返回 true 的时候就终止这次循环。
@@ -138,6 +136,14 @@ export default function App() {
 - **LowPriority**：数据预取（比如预加载下一页的数据）、分析和日志上报等。
 - **Idle**: 最低优先级，用于执行那些完全可以在浏览器空闲时才做的任务。
 
+总体看看 React 的更新流程：
+![[Pasted image 20251010193006.png]]
+- 先通过 setState 或 useState 的 setter 函数触发更新。
+- 先将更新放入队列，短时间多个更新请求会进行合并后进行渲染。
+- 通过 **Scheduler** 这个并发模式大脑来进行时间切片，找到空闲时间执行，如果有高优先级进来优先响应
+- 渲染阶段：整体是内存中进行暂停和恢复的 fiber 对比循环，workInProgress (WIP) 树是正在构建的“草稿”，**current Fiber 与 WIP Fiber** 进行 Diff 操作，找出 props、state 等差异。如果有差异就打上更新插入删除的“标签”。所有被标记了副作用的 Fiber 节点，都会被添加到一个高效的**线性链表**中。这个链表是提交阶段的“施工清单”。
+- 提交阶段：此阶段是同步且不可中断的，WIP 树也已经构建完成。React 会遍历上一步生成的包含变更的 Effect List，一次性同步地完成所有 DOM 的增、删、改。DOM 更新后。在不同更新阶段执行不同生成周期钩子。
+
 ## 2. Vue 的不同路径：精准更新
 ### 2.1 细粒度的响应式系统和高效的异步更新队列
 Vue 的响应式系统实现了**细粒度**的依赖追踪，其精度远超“组件级别”，可以直达模板中的**具体绑定**（如一个文本插值或一个属性）。
@@ -146,9 +152,13 @@ Vue 的响应式系统实现了**细粒度**的依赖追踪，其精度远超“
 - **精准更新：** 当一个响应式数据变化时，Vue 不会重新渲染整个组件。它会直接通知并重新执行那些“订阅”了该数据的**更新函数 (effect)**。这些函数只负责更新模板中那一小块依赖该数据的 DOM。
 
 所以因为更新任务从一开始就是最小化的、分散的，所以每个任务的执行成本极低。Vue 只需要通过 nextTick 将同一事件循环中的多个小任务合并，进行一次批处理即可。这个过程本身就非常高效，几乎不会长时间阻塞主线程，因此也就不需要引入“时间切片”这种复杂的调度机制来打断它。
-
-而 React 的模型不同，当一个组件的状态发生变化时，React 会**从这个组件开始，向下遍历其子组件树**，进行新旧 Virtual DOM 的对比（这个过程称为 Reconciliation）。虽然开发者可以手动通过 `React.memo`、`PureComponent` 或 `shouldComponentUpdate`、`useMemo`、`useCallback` 等 API 手动进行优化，跳过那些没有必要更新的子树，但其核心思想是“通过比对找出差异”。
+vue2 响应式更新流程：
+![[Pasted image 20251010193028.png]]
+vue3 响应式更新流程：
+![[Pasted image 20251010193034.png]]
+而 React 的模型不同，当一个组件的状态发生变化时，React 会**从这个组件开始，向下遍历其子组件树**，进行新旧 Virtual DOM 的对比（这个过程称为 Reconciliation）。虽然开发者可以手动通过 `React.memo`、`PureComponent` 或 `shouldComponentUpdate`、`useMemo`、`useCallback` 等 API 手动进行优化，跳过那些没有必要更新的子树，但其核心思想是“通过比对找出差异”。
 这就像你只知道城里某个街区（触发更新的组件）有情况，但需要把这个街区挨家挨户盘问一遍才能确定具体问题。如果这个街区很大（组件树很深或很宽），盘问过程依然会很耗时。**而这种“地毯式排查”的模式，其根本原因在于 React 的状态是不可变的（Immutable）**：当状态变化时，React 只知道状态对象变了，但无法精确知道是哪个属性变了，因此需要通过 Diff 来寻找差异。
+最根本的更新粒度是不一样的，React 是组件级别（Fiber 调度），Vue 则是细粒度的响应式数据依赖。
 ```js
 // --- 全局变量和数据结构 ---
 let activeEffect;
@@ -260,8 +270,69 @@ function cleanup(effectFn) {
   effectFn.deps.length = 0;
 }
 ```
+Vue 3 的依赖收集后的数据结构如下：
 ![[Pasted image 20251008085841.png]]
 WeakMap 的键是原始对象 target，值是一个 Map 实例，而 Map 的键是原始对象 target 的 key，Map 的值是一个 由副作用函数组成的 Set。
+这里面 effect 很有意思：
+- 当一个 effect 函数首次执行时，它会“订阅”它在执行过程中访问过的所有响应式数据。这个过程就是**依赖收集。**
+- 当被它订阅的响应式数据发生变化时，这个 effect 会被调度并**自动重新执行**。这确保了所有依赖该数据的逻辑（如视图渲染、计算属性等）都能得到及时的更新。
+effect 的根本作用是在“数据”（因）和“副作用”（果）之间建立一座**自动化的桥梁**。“副作用”在这里是广义的，可以指更新 DOM（组件渲染）、执行一段逻辑（watchEffect）、或重新计算一个值（computed）。
+```js
+console.log("--- 1. 基本用法 ---");
+// a. 创建一个原始对象
+const data = { text: 'Hello', count: 0 };
+// b. 将其变为响应式对象
+const obj = reactive(data);
+
+// c. 使用 effect 注册一个副作用函数，它会依赖 obj.text
+effect(() => {
+  console.log('Effect 1 (text) is running:', obj.text);
+});
+
+// d. 修改响应式对象的属性，这会触发上面的 effect 重新执行
+console.log('修改 obj.text...');
+obj.text = 'Hello, World!';
+
+
+console.log("\n--- 2. 异步批量更新 ---");
+// a. 注册一个依赖于 obj.count 的 effect
+effect(() => {
+  console.log('Effect 2 (count) is running:', obj.count);
+});
+
+// b. 在同一个事件循环中多次修改 obj.count
+console.log('连续两次增加 count...');
+obj.count++;
+obj.count++;
+console.log('同步代码执行完毕，更新将在微任务中执行。');
+
+
+setTimeout(() => {
+  console.log("\n--- 3. 自定义调度器 (scheduler) ---");
+  // a. 创建一个响应式对象
+  const data3 = { value: 1 };
+  const obj3 = reactive(data3);
+
+  // b. 注册一个带有 scheduler 的 effect
+  effect(() => {
+    console.log('Effect 3 (scheduler) is running:', obj3.value);
+  }, {
+    // 当依赖变化时，不会直接执行副作用函数，而是执行这个 scheduler
+    scheduler(fn) {
+      console.log('Scheduler is called!');
+      // 我们可以决定何时以及如何执行原始的副作用函数 (fn)
+      // 例如，我们可以在 1 秒后执行它
+      setTimeout(fn, 1000);
+    }
+  });
+
+  // c. 修改数据
+  console.log('修改 obj3.value...');
+  obj3.value++;
+  console.log('同步代码执行完毕，等待 scheduler...');
+  // 预期：会先打印 'Scheduler is called!'，然后大约 1 秒后打印 'Effect 4 (scheduler) is running: 2'
+}, 200);
+```
 
 ### 2.2 编译时优化
 Vue 是少数将编译时优化作为核心性能策略的主流框架之一。
@@ -320,11 +391,8 @@ https://github.com/vuejs/rfcs/issues/89#issuecomment-546988615
 
 
 ## 结论
-React 和 Vue 在性能优化上走向了两条截然不同的道路，这根植于它们核心架构的差异：
 - **React 的并发机制**：其核心是“**调度**”。它接受了“更新可能是慢的”这一事实，因此构建了以 Fiber 为基础的复杂调度系统，为“慢”任务提供一种不阻塞主线程的执行方式，保障用户交互的优先响应。
 - **Vue 的响应式系统**：其核心是“**精准**”。它通过细粒度的依赖追踪和编译时优化，从源头上极大地减少了不必要的更新和计算量，努力让每一次任务都“足够快”，以至于在绝大多数场景下都不需要中断与恢复的复杂调度。
-
-两者没有绝对的优劣，只是在不同设计哲学下的不同取舍。React 提供了处理极端复杂场景的强大能力，而 Vue 则提供了更易于理解和“开箱即用”的高性能体验。
 
 |           |                                           |                                        |
 | --------- | ----------------------------------------- | -------------------------------------- |
