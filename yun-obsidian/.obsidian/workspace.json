@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "前端/bff.md",
+                "file": "前端/next.js 和 nuxt.js 本质在干什么.md",
                 "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "bff"
+              "title": "next.js 和 nuxt.js 本质在干什么"
             }
           }
         ]
@@ -78,7 +78,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 300,
+    "collapsed": true
   },
   "right": {
     "id": "47651d2566eec55b",
@@ -141,13 +142,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "前端/bff.md",
+                "file": "前端/next.js 和 nuxt.js 本质在干什么.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "bff 的大纲"
+              "title": "next.js 和 nuxt.js 本质在干什么 的大纲"
             }
           }
         ],
@@ -173,8 +174,8 @@
   },
   "active": "3e716669d17b5704",
   "lastOpenFiles": [
-    "跨端/小程序/入门.md",
     "前端/bff.md",
+    "跨端/小程序/入门.md",
     "跨端/小程序/大型小程序的高效通信与更新架构.md",
     "跨端/小程序/WebView 核心架构设计.md",
     "跨端/小程序/小程序的渲染机制.md",
