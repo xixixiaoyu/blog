@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "前端/bff.md",
+                "file": "计算机通识/rpc.md",
                 "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "bff"
+              "title": "rpc"
             }
           }
         ]
@@ -142,13 +142,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "前端/bff.md",
+                "file": "计算机通识/rpc.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "bff 的大纲"
+              "title": "rpc 的大纲"
             }
           }
         ],
@@ -175,6 +175,7 @@
   },
   "active": "68363b4b62e40721",
   "lastOpenFiles": [
+    "前端/bff.md",
     "计算机通识/rpc.md",
     "前端/next.js 和 nuxt.js 本质在干什么.md",
     "跨端/小程序/WebView 核心架构设计.md",
@@ -184,7 +185,6 @@
     "跨端/小程序/入门.md",
     "跨端/小程序/WebView 通信设计.md",
     "跨端/小程序",
-    "前端/bff.md",
     "AI/大模型的训练过程和运行原理.md",
     "随笔/十个道理.md",
     "计算机通识/“加法器”、“比较器”、“寄存器”.md",
