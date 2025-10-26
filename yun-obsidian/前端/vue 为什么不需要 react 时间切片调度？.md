@@ -1,163 +1,183 @@
-## 1. React 时间切片、fiber、并发机制关系？
-![[Pasted image 20251009104248.png]]
-简单而言：Fiber 是“可打断的链表组件”，时间切片是“让出主线程的调度策略”，并发机制是“把这两者组合起来，让 React 在渲染中途还能响应高优任务”。
+# React 更新
+首先我们看下 React 的渲染更新流程：
+![[Pasted image 20251019135650.png]]
+当我们 setState 的时候，React 会根据新状态生成虚拟 DOM，然后与旧虚拟 DOM 对比（diff）。根据差异更新需要改变的视图。
+而 React 时间切片和 Fiber 技术就是为了解决这个 diff 时间过长，导致主线程长时间被占用，引发的页面卡顿的问题。
 
-### 1.1 Fiber：可中断的基础设施
-在 React 16 之前，React 的更新是“一口气做完”的。当状态变化时，React 会递归遍历整个组件树，进行 diff 算法，然后一次性更新 DOM。
-这个过程是同步且不可中断的。如果组件树很庞大，这个递归过程就会耗时很长，浏览器主线程被完全占用，用户的所有交互（点击、输入）都会被卡住，直到渲染完成。
-```jsx
-// 这是一个典型的“卡顿”制造者
-class ComplexComponent extends React.Component {
-  state = {
-    // 假设这是一个包含上千个项目的列表
-    items: generateLargeList(),
-    filterText: '',
-  };
+### React 16 之前的更新路径
 
-  // 用户的每一次输入，都会触发一次可能非常耗时的全列表重新渲染
-  handleFilter = (e) => {
-    this.setState({ filterText: e.target.value });
-  };
-
-  render() {
-    const filteredItems = this.state.items.filter(
-      item => item.text.includes(this.state.filterText)
-    );
-
-    return (
-      <div>
-        <input onChange={this.handleFilter} />
-        {/* 渲染一个非常长的列表，这会导致 render 本身非常耗时 */}
-        <ul>
-          {filteredItems.map(item => <li key={item.id}>{item.text}</li>)}
-        </ul>
-      </div>
-    );
-  }
-}
-```
-```
-时间轴 ------------------------------------------------>
-帧 1: |---- JS (React 更新，耗时 100ms) ----|
-帧 2: |---------------------------------------|
-帧 3: |---------------------------------------|
-...
-帧 6: |---------------------------------------|
-帧 7: |---- (React 更新结束) ----| 处理用户点击 | 绘制 |
-```
-为了让画面流畅，浏览器需要以每秒 60 帧的速度刷新，意味着每一帧的预算时间只有大约 16.67 毫秒。
-但上面这个 React 更新可能直接就霸占了 5-6 帧的时间，用户能感觉到的就是明显的掉帧和阻塞。
-![[Pasted image 20251009020845.png]]
-React 更新视图的原理：通过 setState 改变数据从而触发虚拟 DOM 去进行对比，对比结束后将再进行 DOM 更新。那么更新就会分成两部分：
-- 数据更新，触发虚拟 DOM 比较
-- 比较完成后更新真实 DOM 节点
-
-当对比少的节点时使用这种方法时比较合理的，但是当我们一次更新有几百个甚至更多组件需要进行对比时，由于 Diff 是一个**同步**的方法，在进行对比时，由于 JS 单线程的原因，导致其他的事件都**无法响应**。
-
-**Fiber 的诞生，就是为了打破这种“一口气做完”的模式。**
-Fiber 本质上是一个 JavaScript 对象，**是一个为可中断渲染而设计的链表化数据结构，它将 React 元素树上的每一个节点都封装成一个独立的工作单元。**
-更重要的是，它通过 child、sibling、return 指针，将传统的树形结构“链表化”。
-这使得 React 可以**不再使用无法中断的递归方式来遍历组件树，而是改成一个可以随时暂停和恢复的循环迭代**。
-你可以在处理完任何一个 Fiber 节点后，记录下当前的位置，然后随时把主线程交还给浏览器。
+在 React 16 之前，当组件 setState 或 props 改变触发更新时，React 会从根组件开始，递归不可中断地对比每个组件的新旧虚拟 DOM。
 ```js
-// 一个极度简化的 Fiber 节点结构
-const fiberNode = {
-  // 组件类型，比如 'div' 或一个函数组件
-  type: 'div',
-  // 组件实例，如类组件实例或 DOM 节点
-  stateNode: null,
-  // 指向第一个子 Fiber 节点
-  child: null,
-  // 指向下一个兄弟 Fiber 节点
-  sibling: null,
-  // 指向父 Fiber 节点
-  return: null,
-  // ... 其他包含 props、state、副作用（即需要做的更新）等信息
-};
-```
-![[Pasted image 20251009021142.png]]
-链表结构是可以随时暂停和恢复的。
-React 不再需要用无法中断的递归去遍历树，而是可以采用一个循环。每处理完一个 Fiber 节点，它都可以检查一下时间，如果时间紧张，就立刻记录下当前的工作进度，把主线程还给浏览器。等浏览器忙完了，再从上次中断的地方继续。
-所以，Fiber 的核心贡献是：**将渲染工作从“不可中断的递归调用”变成了“可中断的链表遍历”**。它为后续的优化提供了物理基础。
-![[Pasted image 20251009025806.png]]
-每处理一个 fiber 节点，都判断下是否中断，shouldYield 返回 true 的时候就终止这次循环。
-循环处理每个 fiber 节点的时候，有个指针记录着当前的 fiber 节点，叫做 `workInProgress`。
-这个循环叫做 workLoop。
-
-### 1.2 时间切片：利用 Fiber 实现的调度策略
-有了 Fiber 这个可中断的基础设施，我们就可以实现“时间切片”了。
-因为 React 更新从根组件开始的“重新渲染 + Diff”过程依然可能是一个耗时较长的**纯计算任务**。
-如果这个任务长时间占用主线程，页面就会卡顿。“时间切片”正是为了解决这个问题而设计的：**它允许 React 将这个宏大的计算任务切分成小块，在执行间隙可以响应用户输入等更高优先级的事件，从而保证应用的流畅性**。这个过程在 React 中被称为“调度”。
-![[Pasted image 20251009025432.png]]
-React 会在一个很短的时间片内执行工作，通常这个时间片的默认目标是 **5毫秒左右**，以确保主线程能快速响应更高优先级的任务。每次处理完一个 Fiber 节点，React 都会检查剩余时间是否足够。如果时间用尽，它就会暂停工作，将控制权交还给浏览器，等待下一轮空闲时间再继续。
-
-### 1.3 并发机制：基于前两者的高级能力
-当 React 既能将工作拆分（Fiber），又能控制工作的执行时机（时间切片）时，一个更强大的能力就诞生了：**并发**。
-![[Pasted image 20251009030610.png]]
-上面是两个 setState 引起的两个渲染流程，先处理前面渲染的 fiber 节点，然后处理下面渲染的 fiber 节点，之后继续处理上面渲染的 fiber 节点。
-这就是并发。
-**并发机制是 Fiber 和时间切片的“上层建筑”，它带来了革命性的新特性：**
-- **`startTransition`**：你可以明确告诉 React：“这个更新（比如筛选一个很大的列表）是不紧急的，可以慢慢来。” React 会把它标记为低优先级任务，在后台处理。如果期间有高优先级任务（如用户输入）进来，React 会暂停低优先级任务，优先处理高优先级任务，处理完再恢复。
-- **`useDeferredValue`**：与 `startTransition` 类似，它允许你延迟更新 UI 的某个部分。比如，一个输入框同时控制一个列表的筛选和一个图表的显示。你可以让图表的更新“延迟”，这样列表的筛选会感觉更即时。
-- **`Suspense`**：当一个组件需要等待异步数据时，它可以在渲染过程中“抛出”一个 Promise。React 捕获后会暂停该组件树的渲染，并显示一个 fallback UI（如 loading），等到数据加载完成再恢复渲染。这个过程完全依赖于 Fiber 的可中断特性。
-
-**所以，并发机制是建立在 Fiber 和时间切片之上的应用层能力。它让 React 能够智能地管理多个渲染任务，根据优先级进行调度、暂停、恢复甚至丢弃，从而打造出极致流畅的用户体验。**
-并发特性可以给不同的 setState 标上不同的优先级的，我们看看 `startTransition`：
-```jsx
-import React, { useTransition, useState } from "react";
-
-export default function App() {
-  const [text, setText] = useState('ye');
-  const [text2, setText2] = useState('che');
-
-  const [isPending, startTransition] = useTransition()
-
-  const handleClick = () => {
-    startTransition(() => {
-      setText('ye2');
-    });
-
-    setText2('che2');
+function reconcile(parent) {
+  for (child of parent.children) {
+    reconcile(child); // 递归
   }
-
-  return (
-    <button onClick={handleClick}>{text}{text2}</button>
-  );
 }
 ```
-在这个例子中，我们有两个状态更新。通过将 setText('ye2') 包裹在 startTransition 的回调中，我们明确地告诉 React：这个更新是**非紧急的**，可以推迟渲染，它是一个“过渡”任务。
-而 setText2('che2') 没有被包裹，因此它被视为一个**紧急更新**，会立即触发高优先级的渲染。React 会优先完成紧急更新（che2 会立刻显示），然后再在后台处理过渡任务（ye2 的更新可能会稍后显示）。
-上面谈到的优先级是调度任务的优先级，有这 5 种：
-![[Pasted image 20251009023523.png]]
-- **NoPriority**：代表“无优先级”，它**不属于任何实际的任务优先级**。它主要作为系统的初始值或一个特殊的占位符，用来表示某个工作单元（如 Fiber 节点）上当前没有待处理的更新任务。任何真正需要被调度的任务，都会被赋予一个具体的、可执行的优先级（如 Immediate, UserBlocking 等）。
+比如下面组件树：
+```
+<App>
+  <Header />
+  <Main>
+    <Sidebar />
+    <Content />
+  </Main>
+</App>
+```
+当 `<Content>` 的状态变化时，React 15 会：
+1. 从 `<App>` 开始递归进入子组件；
+2. 一路深入到 `<Content>`；
+3. 比较新旧虚拟 DOM；
+4. 如果有差异，立即更新真实 DOM；
+5. 整个过程是连续、同步完成的。
+这样很明显，如果组件树很多，递归过程就会耗时过长，阻塞主线程，导致页面卡顿。
+![[Pasted image 20251019162130.png]]
+为了解决这些问题，React 团队在 React 16 中引入了 **Fiber 架构**。
+
+### Fiber 架构
+为了解决上述问题，React 团队重写了整个核心协调算法，引入了 Fiber 架构。
+![[Pasted image 20251019162915.png]]
+Fiber 本质上就是一个 JS 对象，不过这个对象是**链表**的结构：
+```js
+{
+  type: ...,           // 组件类型（如函数、类、'div' 等）
+  key: ...,            // key 属性
+  props: ...,          // props
+  stateNode: ...,      // 对应的真实 DOM 节点或组件实例
+  child: ...,          // 第一个子 Fiber
+  sibling: ...,        // 下一个兄弟 Fiber
+  return: ...,         // 父 Fiber
+  pendingProps: ...,   // 新的 props（待处理）
+  memoizedProps: ...,  // 上一次渲染使用的 props
+  memoizedState: ...,  // 上一次渲染使用的 state
+  effectTag: ...,      // 副作用标记（如 Placement、Update、Deletion）
+  nextEffect: ...,     // 用于副作用链表
+  alternate: ...,      // 指向 work-in-progress 或 current 树的对应节点
+  // ... 其他调度和优先级相关字段
+}
+```
+![[Pasted image 20251026204926.png|300]]
+React 会使用这些 Fiber 对象构建一棵可中断、可恢复的“Fiber 树”，用**循环 + 指针移动**来遍历：
+```js
+let current = root;
+while (current) {
+  // 处理当前 Fiber 节点
+  // ...
+  // 决定下一步去哪：子节点 → 兄弟节点 → 父节点回溯
+  if (current.child) {
+    current = current.child;
+  } else {
+    while (current && !current.sibling) {
+      current = current.return; // 回溯
+    }
+    current = current?.sibling;
+  }
+}
+```
+这种遍历可以在任意节点暂停，记录当前 `current` 指针位置，稍后再从该位置**恢复**。
+把庞大的渲染任务拆分成一个个小任务，每个任务只处理一小段 Fiber 节点。
+![[Pasted image 20251009025806.png]]
+为了实现这些，React 引入了一个新的工作模型：**双阶段、双树**。
+- **Render 阶段（可中断）**：这个阶段是“纯计算”。React 会遍历当前的 Fiber 树，在内存中构建一棵“新树”（称为 `workInProgress` 树），进行 diff 算法比较，并收集哪些地方需要更新（即“副作用”）。这个阶段是可中断的。
+- **Commit 阶段（不可中断）**：一旦 `workInProgress` 树构建完成，就进入 Commit 阶段。React 会把所有收集到的副作用一次性、同步地应用到真实的 DOM 上，并调用 `useLayoutEffect`、`useEffect` 等生命周期钩子。这个阶段通常很快，所以必须是同步且不可中断的，以保证 UI 状态的一致性。
+- **双树**：屏幕上显示的是 `current` 树，内存中正在构建的是 `workInProgress` 树。当 `workInProgress` 树提交后，React 会把指针切换，让 `workInProgress` 树成为新的 `current` 树。这种“双缓冲”技术，确保了更新过程的平滑。
+
+### 时间切片
+有了 Fiber 架构，我们就能把任务拆分了。但怎么拆、什么时候暂停、什么时候恢复呢？这就是**时间切片**要解决的问题。
+它的目标很明确：**不让任何任务独占主线程太久**。
+**原理**：React 有一个自己的调度器（Scheduler）。它会为每个小任务分配一个时间片（通常约 5ms）。
+![[Pasted image 20251009025432.png]]
+当一个任务开始执行，启动一个计时器，任务在时间片内完成，就立即开始下一个小任务。
+如果时间片内任务未完成，调度器就会强制中断当前任务，把主线程的控制权交还给浏览器，去处理更高优先级的工作（比如用户输入）。
+等到下一帧，浏览器有空闲了，调度器再回来继续执行刚才被中断的任务。
+
+### 并发机制
+Fiber 和时间切片是 React 内部的引擎，而**并发机制**则是暴露给我们开发者的 API。
+注意 React 的“并发”不是指 CPU 的并行计算，而是指 **“React 能够并发地准备多个版本的 UI，并根据优先级智能地选择将哪一个版本呈现给用户”**。它的核心是“可中断、可插队、可回退”。
+**主要的 API 和能力：**
+**`startTransition` / `useTransition`**：用于标记那些**不紧急**的更新。
+- **场景**：想象一个搜索框。用户输入时，输入框本身的值需要**立即**更新（紧急），但根据输入内容过滤一个上万条的列表，这个操作可以**稍后**进行（非紧急）。
+- **用法**：
+```tsx
+const [isPending, startTransition] = useTransition()
+
+function onInput(e) {
+  const q = e.target.value
+  setQuery(q) // 紧急更新：输入框立即响应
+  startTransition(() => {
+    // 非紧急更新：标记为过渡，React 会智能地调度它
+    setList(expensiveFilter(allItems, q))
+  })
+}
+```
+**`useDeferredValue`**：用于延迟某个值的“使用”。
+- **场景**：输入框的值要立即显示，但依赖这个值的昂贵计算可以延后。
+- **用法**：
+```tsx
+const deferredQuery = useDeferredValue(query)
+// 只有当 deferredQuery 变化时，才会重新执行昂贵的过滤操作
+const filteredList = useMemo(() => expensiveFilter(items, deferredQuery), [items, deferredQuery])
+```
+**`Suspense`**：让组件在等待异步操作（如数据请求、代码分割）时，不至于让整个页面白屏或卡住。
+- **场景**：切换路由时，新页面的组件和数据需要加载。
+- **用法**：
+```tsx
+<Suspense fallback={<Spinner />}>
+  <Results /> {/* 如果 Results 内部在等待数据，会显示 Spinner */}
+</Suspense>
+```
+你可以把 React 的优先级系统想象成一个**多车道的高速公路**：
+- **紧急车道**：用户输入、点击、拖拽等直接交互。
+- **过渡车道**：UI 的非紧急更新，如搜索过滤、页面切换。
+- **后台车道**：数据获取、预渲染等不直接影响当前交互的任务。
+每次更新都会被分配到一条“车道”上。调度器会永远优先处理“紧急车道”上的任务。如果“紧急车道”来车了，正在“过渡车道”上行驶的任务就会被暂停或“插队”。
+具体源码来说，调度任务的优先级有这 5 种：
+![[Pasted image 20251009023523.png|400]]
+- **NoPriority**：代表“无优先级”，它**不属于任何实际的任务优先级**。它主要作为系统的初始值或一个特殊的占位符。
 - **Immediate**: 对应离散的用户行为，如 click, keydown, input。这些操作用户期望立即得到反馈，因此优先级最高。
 - **UserBlocking**: 对应连续的用户行为，如 scroll, drag, mouseover。这些操作会频繁触发，如果每次都以最高优先级执行，可能会阻塞渲染，但它们也需要及时响应，否则用户会感到卡顿。所以它的优先级仅次于 Immediate。
 - **NormalPriority**：网络请求返回后的数据更新、非关键的 setState。比如，页面加载后，通过 useEffect 获取文章列表并更新到界面上。
 - **LowPriority**：数据预取（比如预加载下一页的数据）、分析和日志上报等。
 - **Idle**: 最低优先级，用于执行那些完全可以在浏览器空闲时才做的任务。
 
-总体看看 React 的更新流程：
-![[Pasted image 20251010193006.png]]
-- 先通过 setState 或 useState 的 setter 函数触发更新。
-- 先将更新放入队列，短时间多个更新请求会进行合并后进行渲染。
-- 通过 **Scheduler** 这个并发模式大脑来进行时间切片，找到空闲时间执行，如果有高优先级进来优先响应
-- 渲染阶段：整体是内存中进行暂停和恢复的 fiber 对比循环，workInProgress (WIP) 树是正在构建的“草稿”，**current Fiber 与 WIP Fiber** 进行 Diff 操作，找出 props、state 等差异。如果有差异就打上更新插入删除的“标签”。所有被标记了副作用的 Fiber 节点，都会被添加到一个高效的**线性链表**中。这个链表是提交阶段的“施工清单”。
-- 提交阶段：此阶段是同步且不可中断的，WIP 树也已经构建完成。React 会遍历上一步生成的包含变更的 Effect List，一次性同步地完成所有 DOM 的增、删、改。DOM 更新后。在不同更新阶段执行不同生成周期钩子。
+React 18+ 内部使用 lanes 表示更新优先级（如 Sync、InputDiscrete、InputContinuous、Default、Transition、Idle 等），Scheduler 的 Immediate/UserBlocking/Normal/Low/Idle 仍存在，但主要用于宿主调度层面。
 
-## 2. Vue 的不同路径：精准更新
+所以 fiber、时间切片和并发的关系是：
+![[Pasted image 20251009104248.png]]
+
+### 从 `setState` 到屏幕
+我们串联下整体流程：
+![[Pasted image 20251010193006.png]]
+1. 你点击一个按钮，触发 `setState`。
+2. React 为这次更新创建一个“更新对象”，并根据触发源（如点击、输入）给它分配一个优先级
+3. 调度器将这个更新任务放入队列。
+4. 调度器开始执行 Render 阶段，遍历 Fiber 树，构建 `workInProgress` 树。
+5. **（并发场景）** 如果此时用户又在输入框里打字，一个更高优先级的更新到来。调度器会暂停当前的渲染任务，转而去处理输入这个高优先级任务。
+6. 当某个渲染任务完成后，进入 Commit 阶段，将变更同步应用到 DOM。
+7. **（Suspense 场景）** 如果在渲染中发现某个组件需要的数据还没准备好，React 会抛出一个 Promise。`Suspense` 组件会捕获它，并显示 `fallback` UI，同时 React 会记住这个位置。等数据到了，React 会重新从这里开始渲染。
+
+更新的话，重新执行 render 函数：
+- 遍历 Fiber 树，对每个节点执行 `beginWork`。
+    - 处理节点的 `updateQueue`，计算出最新 `state`。
+    - 对比新旧 `state`/`props`：
+        - **有变化**：执行组件渲染，进行 Diff，标记副作用（`effectTag`）。
+        - **无变化**：跳过该组件及其子树的渲染。
+
+# 2. Vue 的不同路径：精准更新
 ### 2.1 细粒度的响应式系统和高效的异步更新队列
 Vue 的响应式系统实现了**细粒度**的依赖追踪，其精度远超“组件级别”，可以直达模板中的**具体绑定**（如一个文本插值或一个属性）。
 ![[Pasted image 20251008211240.png]]
 - **依赖收集：** 在组件首次渲染时，Vue 会像一个侦探，记录下模板中哪个“视图片段”使用了哪个“响应式数据”。这个过程通过 Proxy (Vue 3) 或 Object.defineProperty (Vue 2) 实现。
 - **精准更新：** 当一个响应式数据变化时，Vue 不会重新渲染整个组件。它会直接通知并重新执行那些“订阅”了该数据的**更新函数 (effect)**。这些函数只负责更新模板中那一小块依赖该数据的 DOM。
 
-所以因为更新任务从一开始就是最小化的、分散的，所以每个任务的执行成本极低。Vue 只需要通过 nextTick 将同一事件循环中的多个小任务合并，进行一次批处理即可。这个过程本身就非常高效，几乎不会长时间阻塞主线程，因此也就不需要引入“时间切片”这种复杂的调度机制来打断它。
+正因为更新任务从一开始就被拆分得足够细、且精确指向实际受影响的绑定，单次更新的执行成本通常很低。Vue 在同一事件循环中通过微任务（nextTick）合并多个更新并批处理，这让大多数应用场景下的更新几乎不会长时间阻塞主线程，从而对“时间切片”这类复杂调度的需求显著降低。
+但这并不意味着 Vue 永远不会阻塞。如果副作用函数里包含大量同步计算、或一次性触发了巨量 DOM 变更，仍可能造成卡顿。此类场景应该考虑将重计算移到 Web Worker、按需拆分任务、或分块渲染以降低一次性工作量。
 vue2 响应式更新流程：
 ![[Pasted image 20251010193028.png]]
 vue3 响应式更新流程：
 ![[Pasted image 20251010193034.png]]
 而 React 的模型不同，当一个组件的状态发生变化时，React 会**从这个组件开始，向下遍历其子组件树**，进行新旧 Virtual DOM 的对比（这个过程称为 Reconciliation）。虽然开发者可以手动通过 `React.memo`、`PureComponent` 或 `shouldComponentUpdate`、`useMemo`、`useCallback` 等 API 手动进行优化，跳过那些没有必要更新的子树，但其核心思想是“通过比对找出差异”。
-这就像你只知道城里某个街区（触发更新的组件）有情况，但需要把这个街区挨家挨户盘问一遍才能确定具体问题。如果这个街区很大（组件树很深或很宽），盘问过程依然会很耗时。**而这种“地毯式排查”的模式，其根本原因在于 React 的状态是不可变的（Immutable）**：当状态变化时，React 只知道状态对象变了，但无法精确知道是哪个属性变了，因此需要通过 Diff 来寻找差异。
+这就像你只知道城里某个街区（触发更新的组件）有情况，但需要把这个街区挨家挨户盘问一遍才能确定具体问题。如果这个街区很大（组件树很深或很宽），盘问过程依然会很耗时。更准确地说，React 进行虚拟 DOM 的 diff，并不是因为“不可变状态导致不知道哪个属性变了”。React 的核心是函数式的 UI 输出模型：每次渲染都会基于当前 state/props 计算出一版新的 UI 描述（VNode/JSX），再与上一版进行对比以生成最小的 DOM 变更。不可变数据在工程实践中有助于优化（例如便于 memo、避免意外共享和突变），但并不是 React 需要 diff 的根本原因。即便使用可变对象，只要触发 setState，React 仍会重新计算输出并进行 diff。
 最根本的更新粒度是不一样的，React 是组件级别（Fiber 调度），Vue 则是细粒度的响应式数据依赖。
 ```js
 // --- 全局变量和数据结构 ---
@@ -371,7 +391,7 @@ _createElementVNode("button", {
 这就是为什么你需要 `React.memo`、`useCallback` 和 `useMemo` 这些“手动工具箱”的原因。
 Vue 的 `template` 是一套受限的、声明式的 DSL（领域特定语言）。
 而 JSX 本质上是 `JavaScript`。这意味着在 JSX 的花括号 `{}` 里，你可以放**任何合法的 JavaScript 表达式**。
-其实 React 团队也早已意识到了手动优化的心智负担问题，所以开发了 **React Compiler**（以前叫 Forget），它会尝试去分析你的 JavaScript 代码，**推断**出哪些部分是稳定的，自动为你加上 `React.memo`, `useCallback`, `useMemo`。
+其实 React 团队也早已意识到了手动优化的心智负担问题，所以开发了 **React Compiler**（以前叫 Forget），它会尝试去分析你的 JavaScript 代码，**推断**出哪些部分是稳定的，自动为你加上 `React.memo`, `useCallback`, `useMemo`。但目前生产默认仍以运行时 diff 为主。
 **Svelte** 采取了更激进的编译策略：它既用类似模板的语法（但比 Vue 更接近 JS），又在编译时生成极致优化的命令式代码。它证明了“编译时框架”可以做到比 Vue 更彻底的优化，但代价是**运行时更薄、编译器更重、生态更封闭**。
 React 选择了一条更通用、更兼容现有 JS 生态的路，所以它的编译优化注定是“渐进式”的。
 
