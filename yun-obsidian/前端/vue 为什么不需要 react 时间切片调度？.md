@@ -56,6 +56,7 @@ Fiber 本质上就是一个 JS 对象，不过这个对象是**链表**的结构
   // ... 其他调度和优先级相关字段
 }
 ```
+注意：在 React 18+ 中，`effectTag` 字段已被 `flags` 替代，但作用类似（用于标记副作用，如 Placement/Update/Deletion）。
 ![[Pasted image 20251026204926.png|300]]
 React 会使用这些 Fiber 对象构建一棵可中断、可恢复的“Fiber 树”，用**循环 + 指针移动**来遍历：
 ```js
@@ -90,6 +91,8 @@ while (current) {
 当一个任务开始执行，启动一个计时器，任务在时间片内完成，就立即开始下一个小任务。
 如果时间片内任务未完成，调度器就会强制中断当前任务，把主线程的控制权交还给浏览器，去处理更高优先级的工作（比如用户输入）。
 等到下一帧，浏览器有空闲了，调度器再回来继续执行刚才被中断的任务。
+
+注：时间切片在 React 16/17 时期属于实验性的并发渲染能力（非默认），在 React 18 并发特性稳定后才广泛启用；理解这一点有助于正确把握不同版本的行为差异。
 
 ### 并发机制
 Fiber 和时间切片是 React 内部的引擎，而**并发机制**则是暴露给我们开发者的 API。
@@ -131,7 +134,7 @@ const filteredList = useMemo(() => expensiveFilter(items, deferredQuery), [items
 - **过渡车道**：UI 的非紧急更新，如搜索过滤、页面切换。
 - **后台车道**：数据获取、预渲染等不直接影响当前交互的任务。
 每次更新都会被分配到一条“车道”上。调度器会永远优先处理“紧急车道”上的任务。如果“紧急车道”来车了，正在“过渡车道”上行驶的任务就会被暂停或“插队”。
-具体源码来说，调度任务的优先级有这 5 种：
+具体源码来说，调度任务的优先级有这 6 种（其中 NoPriority 为占位，不代表实际的任务优先级）：
 ![[Pasted image 20251009023523.png|400]]
 - **NoPriority**：代表“无优先级”，它**不属于任何实际的任务优先级**。它主要作为系统的初始值或一个特殊的占位符。
 - **Immediate**: 对应离散的用户行为，如 click, keydown, input。这些操作用户期望立即得到反馈，因此优先级最高。
@@ -350,7 +353,7 @@ setTimeout(() => {
   console.log('修改 obj3.value...');
   obj3.value++;
   console.log('同步代码执行完毕，等待 scheduler...');
-  // 预期：会先打印 'Scheduler is called!'，然后大约 1 秒后打印 'Effect 4 (scheduler) is running: 2'
+  // 预期：会先打印 'Scheduler is called!'，然后大约 1 秒后打印 'Effect 3 (scheduler) is running: 2'
 }, 200);
 ```
 
@@ -359,9 +362,9 @@ Vue 是少数将编译时优化作为核心性能策略的主流框架之一。
 Vue的编译器在将模板（template）编译成渲染函数（render function）的过程中，会进行大量的静态分析，为运行时的更新过程提供关键的优化信息。
 主要有：
 - **静态内容提升**：编译器识别出模板中永远不会改变的部分（静态节点），并将其提升到渲染函数之外，后续更新时完全跳过这些节点。
-- **更新类型标记**：编译器为动态节点打上"标记"（Patch Flag），**（例如，标记 1 代表这个节点只有文本内容会变，标记 8 代表只有 class 会变）**，告诉运行时 diff 算法只需比对特定属性，避免全量树比对。
+- **更新类型标记**：编译器为动态节点打上“标记”（Patch Flag），例如：`1` 代表只有文本会变（TEXT）、`2` 代表只有 `class` 会变（CLASS）、`8` 代表仅存在非 `class`/`style` 的动态属性（PROPS），从而让运行时只比对必要的部分，避免全量树比对。
 - **事件处理缓存**：编译器自动缓存内联事件处理器，避免每次渲染时都创建新的函数实例，优化内存占用和更新性能。
-Vue SFC Plauground 地址：[https://play.vuejs.org/](https://play.vuejs.org/)
+Vue SFC Playground 地址：[https://play.vuejs.org/](https://play.vuejs.org/)
 ![[Pasted image 20251008103730.png]]
 ```javascript
 const _hoisted_1 = { class: "container" }
