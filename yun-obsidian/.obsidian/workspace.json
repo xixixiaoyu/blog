@@ -14,6 +14,20 @@
               "type": "markdown",
               "state": {
                 "file": "前端/vue 为什么不需要 react 时间切片调度？.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "vue 为什么不需要 react 时间切片调度？"
+            }
+          },
+          {
+            "id": "6982debf0716bbb1",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "前端/vue 为什么不需要 react 时间切片调度？.md",
                 "mode": "preview",
                 "source": false
               },
@@ -21,7 +35,8 @@
               "title": "vue 为什么不需要 react 时间切片调度？"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -78,7 +93,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 300,
+    "collapsed": true
   },
   "right": {
     "id": "47651d2566eec55b",
@@ -172,24 +188,30 @@
       "file-cleaner-redux:Clean files": false
     }
   },
-  "active": "13e28711126b648c",
+  "active": "6982debf0716bbb1",
   "lastOpenFiles": [
+    "前端/attachments/Pasted image 20251019162130.png",
     "前端/vue 为什么不需要 react 时间切片调度？.md",
-    "前端/vue 为什么不需要 react 时间切片调度？.md",
-    "前端/微前端/提示学习.md",
-    "前端/attachments/Pasted image 20251026204926.png",
-    "前端/微前端/从 iframe 到路由分发.md",
+    "前端/attachments/Pasted image 20251019135650.png",
+    "前端/bff.md",
+    "前端/部署.md",
+    "前端/自动化.md",
     "前端/微前端/巨石应用.md",
+    "前端/微前端/提示学习.md",
+    "前端/微前端/从 iframe 到路由分发.md",
+    "跨端/跨端框架.md",
+    "计算机通识/“加法器”、“比较器”、“寄存器”.md",
+    "计算机通识/计算机运行的本质.md",
+    "计算机通识/编程的本质.md",
+    "AI/模型真的有理解吗.md",
+    "计算机通识/dns.md",
+    "计算机通识/rpc.md",
+    "随笔/向上管理.md",
+    "前端/next.js 和 nuxt.js 本质在干什么.md",
+    "前端/attachments/Pasted image 20251026204926.png",
     "前端/微前端",
     "前端/attachments/Pasted image 20251020232251.png",
     "前端/attachments/Pasted image 20251019162915.png",
-    "前端/attachments/Pasted image 20251019162130.png",
-    "前端/attachments/Pasted image 20251019135650.png",
-    "跨端/跨端框架.md",
-    "计算机通识/dns.md",
-    "计算机通识/rpc.md",
-    "前端/bff.md",
-    "前端/next.js 和 nuxt.js 本质在干什么.md",
     "跨端/小程序/WebView 核心架构设计.md",
     "跨端/小程序/小程序的渲染机制.md",
     "跨端/小程序/小程序数据机制及优化方案.md",
@@ -199,18 +221,12 @@
     "跨端/小程序",
     "AI/大模型的训练过程和运行原理.md",
     "随笔/十个道理.md",
-    "计算机通识/“加法器”、“比较器”、“寄存器”.md",
-    "计算机通识/计算机运行的本质.md",
-    "计算机通识/编程的本质.md",
     "跨端/WebView 通信设计.md",
-    "跨端/小程序数据机制及优化方案.md",
-    "跨端/WebView 核心架构设计.md",
     "前端/attachments/Pasted image 20251010193034.png",
     "前端/attachments/Pasted image 20251010193028.png",
     "前端/attachments/Pasted image 20251010193006.png",
     "前端/attachments/Pasted image 20251009104248.png",
     "前端/attachments/Pasted image 20251009030610.png",
-    "跨端/小程序的渲染机制.md",
     "考研",
     "考研",
     "AI",
