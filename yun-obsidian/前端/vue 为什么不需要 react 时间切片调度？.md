@@ -5,7 +5,7 @@
 
 当组件 setState 或 props 改变触发更新时，React 会根据新状态生成虚拟 DOM，然后与旧虚拟 DOM 对比（Diff）。根据差异更新需要改变的视图。
 
-而 React 时间切片和 Fiber 技术就是为了解决这个 Diff 时间过长，导致主线程长时间被占用，引发的页面卡顿的问题。
+而 React 时间切片和 Fiber 技术就是为了解决这个计算差异时间过长，导致主线程长时间被占用，引发的页面卡顿的问题。
 
 
 
@@ -45,7 +45,7 @@ function reconcile(parent) {
 
 
 ## Fiber 架构
-Fiber 架构就是为了解决上面问题的而引入的。
+Fiber 架构是为了解决上述问题而引入的。
 
 Fiber 本质上就是个 JS 对象，不过这个对象是链表结构：
 
@@ -142,6 +142,8 @@ function performUnitOfWork(workInProgressFiber) {
 }
 ```
 
+注：以上代码是示意性的伪代码，使用 requestIdleCallback 只是为了说明“在空闲时继续工作”的思路。React 实际并不依赖 rIC；它通过 Scheduler 包配合 MessageChannel/任务队列等机制实现可中断的协作式调度。
+
 ![](https://cdn.nlark.com/yuque/0/2025/png/21596389/1762070381782-9405f09c-5f3f-46a6-ba2e-4cc5c80d1fa4.png)
 
 这样的话把一个大的渲染任务一个个小任务，每个任务只处理一小段 Fiber 节点。
@@ -234,7 +236,7 @@ const filteredList = useMemo(() => expensiveFilter(items, deferredQuery), [items
 + **Low**：处理**后台任务**（如数据预加载、日志上报）。
 + **Idle**：在**浏览器空闲时**执行的任务，优先级最低。
 
-其实 React 还有个 Lanes 优先级，它是二进制表示不同的优先级，更新任务进来，先会分配 Lanes 优先级，然后最后映射为上面的叫** **Scheduler 优先级。
+其实 React 还有个 Lanes 优先级，它是二进制表示不同的优先级，更新任务进来，先会分配 Lanes 优先级，然后最后映射为上面的调度器（Scheduler）优先级。
 
 
 
@@ -263,7 +265,7 @@ const filteredList = useMemo(() => expensiveFilter(items, deferredQuery), [items
 + 遍历 Fiber 树，对每个节点执行 `beginWork`。
     - 处理节点的 `updateQueue`，计算出最新 `state`。
     - 对比新旧 `state`/`props`：
-        * **有变化**：执行组件渲染，进行 Diff，标记副作用（`effectTag`）。
+        * **有变化**：执行组件渲染，进行 Diff，标记副作用（`flags`，如 Update/Placement/Deletion）。
         * **无变化**：跳过该组件及其子树的渲染。
 
 
@@ -579,6 +581,4 @@ Vue 的开发团队确实曾经尝试并实现过时间切片功能。
 
 
 ****
-
-**<font style="background-color:rgb(25, 25, 25);"></font>**
 
