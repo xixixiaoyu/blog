@@ -5,7 +5,7 @@
 
 当组件 setState 或 props 改变触发更新时，React 会根据新状态生成虚拟 DOM，然后与旧虚拟 DOM 对比（Diff）。根据差异更新需要改变的视图。
 
-而 React 时间切片和 Fiber 技术就是为了解决这个计算差异时间过长，导致主线程长时间被占用，引发的页面卡顿的问题。
+而 React 时间切片和 Fiber 技术就是为了解决这个 计算差异 时间过长，导致主线程长时间被占用，引发的页面卡顿的问题。
 
 
 
@@ -83,62 +83,49 @@ Fiber 树长这样：
 这个树可以用循环 + 指针移动来遍历：
 
 ```javascript
-// nextUnitOfWork 是一个全局（或模块级）变量，指向下一个要处理的 Fiber
+// 下一个待处理的 Fiber 节点
 let nextUnitOfWork = null
 
-// workLoop 是 React 调度器在浏览器空闲时调用的函数
+// 调度器主循环：在浏览器空闲时执行
 function workLoop(deadline) {
   let shouldYield = false
-  // 循环条件：1. 有待处理的工作单元 2. 浏览器没有要求我们暂停
+  
+  // 循环条件：有工作且无需让出控制权
   while (nextUnitOfWork && !shouldYield) {
-    // 处理当前工作单元，并返回下一个
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork)
-    
-    // 检查是否需要把控制权交还给浏览器
-    shouldYield = deadline.timeRemaining() < 1
+    shouldYield = deadline.timeRemaining() < 1  // 检查剩余时间
   }
   
-  // 如果工作还没做完，请求下一次调度
-  if (nextUnitOfWork) {
-    requestIdleCallback(workLoop)
-  }
+  // 工作未完成则继续调度
+  if (nextUnitOfWork) requestIdleCallback(workLoop)
 }
 
-// 这是循环的核心，处理单个 Fiber 节点
+// 处理单个 Fiber 节点的完整生命周期
 function performUnitOfWork(workInProgressFiber) {
-  // 1. "进去"阶段：执行 beginWork
-  // beginWork 的任务是：
-  // - 对比新旧 VDOM，计算差异。
-  // - 创建子节点的 Fiber。
-  // - 将子 Fiber 通过 child 和 sibling 指针连接起来。
-  // - 返回第一个子 Fiber 作为下一个工作单元。
+  // 递阶段：深度优先遍历向下
+  // beginWork 核心职责：
+  // - 协调新旧虚拟 DOM，标记变更类型（Placement/Update/Deletion）
+  // - 根据 React Element 创建对应的 Fiber 节点
+  // - 建立 child/sibling 指针关系，构建 Fiber 树结构
+  // - 为当前 Fiber 节点打上副作用标签（effectTag）
   const nextChild = beginWork(workInProgressFiber)
+  if (nextChild) return nextChild
 
-  // 2. 如果有子节点，下一个就处理子节点
-  if (nextChild) {
-    return nextChild
-  }
-
-  // 3. 如果没有子节点，说明 "进去" 阶段到头了，开始 "出来"
+  // 归阶段：回溯向上处理
   let currentFiber = workInProgressFiber
   while (currentFiber) {
-    // "出来" 阶段：执行 completeWork
-    // completeWork 的任务是：
-    // - 将计算出的 DOM 更新“冒泡”到父节点。
-    // - 处理副作用（side-effects）。
+    // completeWork 核心职责：
+    // - 创建或更新 DOM 节点（host component 场景）
+    // - 收集副作用到 effectList，构建提交阶段的变更集
+    // - 处理 context、ref 等副作用的最终处理
+    // - 将子树的 effectList 合并到父节点
     completeWork(currentFiber)
-
-    // 4. 尝试移动到兄弟节点
-    if (currentFiber.sibling) {
-      return currentFiber.sibling
-    }
-
-    // 5. 如果没有兄弟，就返回父节点，继续 "出来" 的过程
-    currentFiber = currentFiber.return
+    
+    if (currentFiber.sibling) return currentFiber.sibling  // 横向处理兄弟节点
+    currentFiber = currentFiber.return  // 纵向回溯到父节点
   }
   
-  // 如果回到了根节点，说明整个树都处理完了
-  return null
+  return null  // 整棵树处理完成
 }
 ```
 
@@ -249,24 +236,28 @@ const filteredList = useMemo(() => expensiveFilter(items, deferredQuery), [items
 ## 从 `setState` 到屏幕
 我们串联下整体流程：
 
-![](https://cdn.nlark.com/yuque/0/2025/png/21596389/1762102537517-d5399e64-16e0-42a1-81b3-fe769b068496.png)
+![](https://cdn.nlark.com/yuque/0/2025/png/21596389/1762145566738-14cbf313-ff2f-456a-af12-c14b4a4b5738.png)
 
 1. 点击一个按钮触发 `setState`
 2. React 为这次更新创建一个“更新对象”，并根据触发源（如点击、输入）给它分配一个优先级
 3. 调度器将这个更新任务放入队列。
 4. 调度器开始执行 Render 阶段，遍历 Fiber 树，构建 `workInProgress` 树
 5. **（并发场景）** 如果此时用户又在输入框里打字，一个更高优先级的更新到来。调度器会暂停当前的渲染任务，转而去处理输入这个高优先级任务
-6. 当某个渲染任务完成后，进入 Commit 阶段，将变更同步应用到 DOM
+6. 在整个“递”和“归”的过程中，React 会给需要进行 DOM 操作（增、删、改）的 Fiber 节点打上标记
+7. 在最终的“提交阶段”，React 需要拿到一个**包含所有待办事项的清单 (Effect List)**，然后一口气执行完
 
 
 
-更新的话，重新执行 render 函数：
+当 React 组件更新时，会重新执行渲染流程。此过程采用深度优先遍历，对 Fiber 树中的每个节点依次执行 `**beginWork**` 和 `**completeWork**`
 
-+ 遍历 Fiber 树，对每个节点执行 `beginWork`。
-    - 处理节点的 `updateQueue`，计算出最新 `state`。
-    - 对比新旧 `state`/`props`：
-        * **有变化**：执行组件渲染，进行 Diff，标记副作用（`flags`，如 Update/Placement/Deletion）。
-        * **无变化**：跳过该组件及其子树的渲染。
+1. **“递”阶段 (**`**beginWork**`**)**：从根节点向下，处理每个节点
+    - 计算最新的 state 与 props
+    - **对比新旧状态**：
+        * 若发现变化，则执行组件渲染、进行 Diff 算法，并为该 Fiber 节点**标记副作用**（如 `**Update**`, `**Placement**`）
+        * 若无变化，则**跳过该节点及其子树的渲染**
+2. **“归”阶段 (**`**completeWork**`**)**：在节点处理完所有子节点后，向上返回执行
+    - 为**原生 DOM 节点**执行收尾工作，如创建 DOM 实例、收集属性更新
+    - 将子树的**副作用标记向上归并**，以便后续阶段能快速定位所有更新
 
 
 
@@ -432,7 +423,7 @@ WeakMap 的键是原始对象 target，值是一个 Map 实例。
 1. **首次执行**：effect 函数运行时，自动“记住”它用到的所有响应式数据（依赖收集）。
 2. **数据变化**：当这些数据变化时，effect 会自动重新运行。
 
-其实就是一个“依赖追踪 + 自动执行”的回调函数。
+实现了 **“数据驱动”** 的自动化—— 数据变，相关逻辑自动更新。
 
 
 
@@ -563,7 +554,7 @@ Vue 的开发团队确实曾经尝试并实现过时间切片功能。
 
 尤雨溪的核心意思是 **React 为解决其固有的性能瓶颈（由运行时和 VDOM 机制导致的过度更新）引入了复杂的时间分片方案，但这带来了新的开销；而 Vue 通过更精细的编译时优化和响应式追踪，从根本上避免了这类瓶颈，因此无需引入类似的复杂机制。**
 
-**说白了也就是收益跟成本完全不匹配。**
+**说白了移除的原因也就是收益跟成本完全不匹配。**
 
 ****
 
@@ -578,7 +569,3 @@ Vue 的开发团队确实曾经尝试并实现过时间切片功能。
 | **优化手段** | 运行时调度（时间切片、优先级） | 编译时优化（静态提升、Patch Flags）+ 响应式系统 |
 | **解决的问题** | 极端复杂或低性能设备下的 UI 响应性问题。 | 大多数场景下的高效更新，避免不必要的计算。 |
 | **开发者心智** | 需要理解 startTransition 等并发 API 来处理低优任务。 | 响应式系统自动优化，心智负担较低。 |
-
-
-****
-
