@@ -5,7 +5,7 @@
 
 当组件 setState 或 props 改变触发更新时，React 会根据新状态生成虚拟 DOM，然后与旧虚拟 DOM 对比（Diff）。根据差异更新需要改变的视图。
 
-而 React 时间切片和 Fiber 技术就是为了解决这个 计算差异 时间过长，导致主线程长时间被占用，引发的页面卡顿的问题。
+而 React 时间切片和 Fiber 技术就是为了解决虚拟 DOM 差异计算时间过长，导致主线程长时间被占用，引发的页面卡顿的问题。
 
 
 
@@ -139,8 +139,8 @@ function performUnitOfWork(workInProgressFiber) {
 
 双阶段：
 
-+ **Render 阶段（可中断）**：纯计算阶段，React 会遍历当前的 Fiber 树，在内存中构建一棵“新树”（称为 workInProgress 树），进行 Diff 算法比较，并收集哪些地方需要更新（即“副作用”）。这个阶段是可中断的。
-+ **Commit 阶段（不可中断）**：React 会把所有收集到的副作用一次性、同步地应用到真实的 DOM 上，并调用 useLayoutEffect、useEffect 等生命周期钩子。这个阶段是同步且不可中断的，以保证 UI 状态的一致性
++ **Render 阶段（可中断）**：纯计算阶段，React 会遍历当前的 Fiber 树，在内存中构建一棵“新树”（称为 workInProgress 树），进行 Diff 算法比较，并收集哪些地方需要更新（即“副作用”）。这个阶段是可中断的。
++ **Commit 阶段（不可中断）**：React 会把所有收集到的副作用一次性、同步地应用到真实的 DOM 上，并执行 layout effects（如 `useLayoutEffect`）。随后调度 passive effects（如 `useEffect`）在浏览器完成绘制后异步运行。这样既保证了 UI 状态一致性，也避免阻塞绘制。
 
 双树：
 
@@ -156,7 +156,7 @@ function performUnitOfWork(workInProgressFiber) {
 
 它的目标很明确：**不让任何任务独占主线程太久**。
 
-原理：React 有一个自己的调度器（Scheduler）。它会为每个小任务分配一个时间片（通常约 5ms）。
+原理：React 有一个自己的调度器（Scheduler）。它会为每个小任务分配一个时间片（通常约 5ms 左右，具体取决于浏览器空闲时间与调度策略）。
 
 ![](https://cdn.nlark.com/yuque/0/2025/png/21596389/1762101237577-2c77b1be-5f00-4688-8971-204962a862ee.png)
 
@@ -248,14 +248,14 @@ const filteredList = useMemo(() => expensiveFilter(items, deferredQuery), [items
 
 
 
-当 React 组件更新时，会重新执行渲染流程。此过程采用深度优先遍历，对 Fiber 树中的每个节点依次执行 `**beginWork**` 和 `**completeWork**`
+当 React 组件更新时，会重新执行渲染流程。此过程采用深度优先遍历，对 Fiber 树中的每个节点依次执行 `beginWork` 和 `completeWork`
 
-1. **“递”阶段 (**`**beginWork**`**)**：从根节点向下，处理每个节点
+1. **“递”阶段（beginWork）**：从根节点向下，处理每个节点
     - 计算最新的 state 与 props
     - **对比新旧状态**：
-        * 若发现变化，则执行组件渲染、进行 Diff 算法，并为该 Fiber 节点**标记副作用**（如 `**Update**`, `**Placement**`）
+        * 若发现变化，则执行组件渲染、进行 Diff 算法，并为该 Fiber 节点标记副作用（如 `Update`, `Placement`）
         * 若无变化，则**跳过该节点及其子树的渲染**
-2. **“归”阶段 (**`**completeWork**`**)**：在节点处理完所有子节点后，向上返回执行
+2. **“归”阶段（completeWork）**：在节点处理完所有子节点后，向上返回执行
     - 为**原生 DOM 节点**执行收尾工作，如创建 DOM 实例、收集属性更新
     - 将子树的**副作用标记向上归并**，以便后续阶段能快速定位所有更新
 
@@ -286,7 +286,7 @@ Vue 的响应式系统实现了**细粒度**的依赖追踪，其精度远超“
 
 
 
-而 React 的模型不同，当一个组件的状态发生变化时，React 会**从这个组件开始，向下遍历其子组件树**，进行 Vdom 的 Diff，虽然开发者可以手动通过 `React.memo`、`PureComponent` 或 `shouldComponentUpdate`、`useMemo`、`useCallback` 等 API 手动进行优化，跳过那些没有必要更新的子树，但其核心思想是“通过比对找出差异”。
+而 React 的模型不同，当一个组件的状态发生变化时，React 会**从这个组件开始，向下遍历其子组件树**，进行 VDOM 的 Diff（虚拟 DOM 比对）。虽然开发者可以通过 `React.memo`、`PureComponent` 或 `shouldComponentUpdate`、`useMemo`、`useCallback` 等 API 手动进行优化，跳过那些没有必要更新的子树，但其核心思想仍是“通过比对找出差异”。
 
 这就是 React 的核心哲学，函数式的 UI 输出模型：每次渲染都会基于当前 state/props 计算出一版新的 UI 描述（VNode/JSX），再与上一版进行对比以生成最小的 DOM 变更。
 
@@ -508,13 +508,13 @@ Vue SFC Playground 地址：[https://play.vuejs.org/](https://play.vuejs.org/)
 const _hoisted_1 = { class: "container" }
 ```
 
-**静态内容提升 (**`**_hoisted_1**`**)**：编译器发现 `<div>` 的 `class` 是一个静态对象，所以把它提升到了 `render` 函数外面。在 `render` 函数里就能复用。
+**静态内容提升 (`_hoisted_1`)**：编译器发现 `<div>` 的 `class` 是一个静态对象，所以把它提升到了 `render` 函数外面。在 `render` 函数里就能复用。
 
 ```javascript
 _createElementVNode("span", null, _toDisplayString($setup.message), 1 /* TEXT */)
 ```
 
-**更新类型标记 (**`**Patch Flag**`**)**：`1 /* TEXT */` 标记告诉 Vue：“这个节点只有文本会变，Diff 的时候就不用那么费劲对比了，直接更新文本就行。
+**更新类型标记 (`Patch Flag`)**：`1 /* TEXT */` 标记告诉 Vue：“这个节点只有文本会变，Diff 的时候就不用那么费劲对比了，直接更新文本就行。”
 
 ```javascript
 _createElementVNode("button", {
