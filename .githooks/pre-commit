@@ -21,4 +21,5 @@ if [ -n "$staged_dsstore_paths" ]; then
 fi
 
 # Invoke the compression script; any failure will block the commit with a helpful message.
-scripts/compress-staged-images.sh
+repo_root=$(git rev-parse --show-toplevel)
+"${repo_root}/scripts/compress-staged-images.sh"
