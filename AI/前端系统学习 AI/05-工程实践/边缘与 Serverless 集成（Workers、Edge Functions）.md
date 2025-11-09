@@ -25,3 +25,73 @@
 - 有速率限制与重试，避免请求风暴。
 - 管理 Secrets 安全可审计。
 
+默认技术栈：TypeScript（Cloudflare Workers / Vercel Edge）+ 后端网关（NestJS）
+
+Cloudflare Workers —— 转发 SSE 到 NestJS 网关：
+
+```ts
+// worker.ts
+export default {
+  async fetch(req: Request, env: Env) {
+    const url = new URL(req.url);
+    if (url.pathname === '/chat') {
+      // 转发到后端 NestJS SSE（统一事件格式）
+      const upstream = await fetch(env.NEST_BASE + '/model/chat?provider=openai&prompt=' + url.searchParams.get('q'));
+      const { readable, writable } = new TransformStream();
+      const writer = writable.getWriter();
+      const encoder = new TextEncoder();
+      const reader = upstream.body!.getReader();
+      // 直接透传 SSE 文本
+      writer.write(encoder.encode(':' + 'worker-bridge\n\n')); // 注释心跳（可选）
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        await writer.write(value);
+      }
+      await writer.close();
+      return new Response(readable, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' } });
+    }
+    return new Response('ok');
+  },
+} satisfies ExportedHandler<Env>;
+```
+
+Vercel Edge Function —— 统一 SSE 输出（转发 NestJS）：
+
+```ts
+// vercel/edge.ts
+import { NextRequest } from 'next/server';
+
+export const config = { runtime: 'edge' };
+
+export default async function handler(req: NextRequest) {
+  const prompt = req.nextUrl.searchParams.get('q') ?? 'hello';
+  const upstream = await fetch(process.env.NEST_BASE + `/model/chat?provider=openai&prompt=${encodeURIComponent(prompt)}`);
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  const reader = upstream.body!.getReader();
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    await writer.write(value);
+  }
+  await writer.close();
+  return new Response(readable, { headers: { 'Content-Type': 'text/event-stream' } });
+}
+```
+
+速率限制与重试（文字版）：
+- Workers/Edge 层实施简单速率限制（按 IP/租户），重试采用指数退避；
+- 对后端返回 429/503，边缘层降速并提示用户；
+
+Secrets 管理：
+- Workers：`wrangler.toml` 的 `vars` 与 `secrets`；Vercel：环境变量与 Secret 管理；
+- 不在边缘层保存供应商密钥，仅保存后端网关地址与短期令牌；
+
+冷启动与优化：
+- 预热：保持 Workers 常用路由活跃（定时心跳请求）；Edge 函数可用轻量初始化；
+- 缓存：静态资源与公共上下文缓存；对不可缓存的 SSE 路径避免 CDN 干预；
+
+兼容性与降级：
+- 若边缘运行时无法处理复杂解析（如 eventsource-parser），直接透传 SSE 文本；
+- 上游不支持流式时，边缘层模拟分片（150ms）输出，改善前端体验；
