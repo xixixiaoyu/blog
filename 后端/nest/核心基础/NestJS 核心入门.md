@@ -7,7 +7,7 @@ Nest 底层基于 Express 框架，如果追求极致性能，也可以切换到
 
 Nest 在它们之上加了一层“抽象”，提供了更结构化的开发方式，但同时也允许你直接调用底层框架 (比如 Express) 的功能，非常灵活。
 
-但是 Nest 本身本身并不和特定的 HTTP 库（像 Express 或 Fastify）紧密耦合，它定义了一个 `HttpServer` 接口，Express 和 Fastify 都有对应的适配器去实现这个接口。你想换底层 HTTP 平台？简单，换个适配器就行，核心业务代码基本不用动。
+但是 Nest 本身并不和特定的 HTTP 库（像 Express 或 Fastify）紧密耦合，它定义了一个 `HttpServer` 接口，Express 和 Fastify 都有对应的适配器去实现这个接口。你想换底层 HTTP 平台？简单，换个适配器就行，核心业务代码基本不用动。
 
 nest 官网：[https://nestjs.com/](https://nestjs.com/)
 
@@ -396,7 +396,7 @@ export class UserController {
   constructor(private userService: UserService) {}
 
   @Get(':id')
-  async getUser(@Param('id') id: number) {
+  async getUser(@Param('id', ParseIntPipe) id: number) {
     // 2. 调用服务层
     const user = await this.userService.findById(id);
     
@@ -427,6 +427,8 @@ export class UserService {
   }
 }
 ```
+
+这里通过 `ParseIntPipe` 保证了路由参数 `id` 被正确地转换为数字类型（否则 `@Param('id')` 默认返回字符串）。
 
 
 

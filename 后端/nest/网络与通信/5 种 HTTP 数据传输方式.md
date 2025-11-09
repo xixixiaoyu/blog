@@ -297,11 +297,20 @@ bootstrap();
 npm install class-validator class-transformer
 ```
 
-在 `main.ts` 中启用全局验证：
+在 `main.ts` 中启用全局验证（建议开启类型转换与白名单）：
 
 ```typescript
-app.useGlobalPipes(new ValidationPipe());
+app.useGlobalPipes(new ValidationPipe({
+  whitelist: true, // 移除 DTO 中未声明的属性
+  forbidNonWhitelisted: true, // 请求体包含多余字段时直接报错
+  transform: true, // 自动将请求数据转换为对应的 DTO/类型（如把字符串数字转换为 number）
+  transformOptions: {
+    enableImplicitConversion: true, // 基于 TypeScript 类型进行隐式转换
+  },
+}));
 ```
+
+这样在 DTO 中声明为 `number` 的字段（如 `age`），当客户端传入字符串（例如 `'18'`）时会被自动转换为数字，避免手工使用 `ParseIntPipe` 或在业务层做额外转换。
 
 更新 DTO：
 
@@ -343,4 +352,3 @@ export class CreatePersonDto {
 
 ## 总结
 HTTP 的 5 种数据传输方式各有千秋，理解它们的原理和适用场景，能帮助你设计更高效、更安全的 API。通过 NestJS 的实战代码，我们看到每种方式的实现都直观明了。无论是传递简单的 ID、复杂的 JSON，还是上传文件，选对方式就像选对快递，能让数据传输又快又稳。
-

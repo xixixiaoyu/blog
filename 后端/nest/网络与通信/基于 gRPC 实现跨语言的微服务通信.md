@@ -178,7 +178,7 @@ npm run start:dev grpc-server
 然后在 AppController 里实现调用远程方法的逻辑：
 
 ```typescript
-import { Controller, Get, Inject, Param } from '@nestjs/common';
+import { Controller, Get, Inject, Param, ParseIntPipe } from '@nestjs/common';
 import { AppService } from './app.service';
 import { ClientGrpc } from '@nestjs/microservices';
 
@@ -207,7 +207,7 @@ export class AppController {
   }
 
   @Get('book/:id')
-  getHero(@Param('id') id: number) {
+  getHero(@Param('id', ParseIntPipe) id: number) {
     return this.bookService.findBook({
       id,
     });
@@ -247,4 +247,3 @@ npm run start:dev grpc-client
 然后 server 端实现 service 对应的方法，client 端远程调用这个 service。
 
 这样就实现了远程方法调用。
-

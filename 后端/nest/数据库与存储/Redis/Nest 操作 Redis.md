@@ -200,7 +200,8 @@ import {
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { RedisClientType } from 'redis';
-import { of, tap } from 'rxjs';
+import { of } from 'rxjs';
+import { tap } from 'rxjs/operators';
 
 @Injectable()
 export class MyCacheInterceptor implements NestInterceptor {
@@ -245,4 +246,3 @@ export class MyCacheInterceptor implements NestInterceptor {
 在 Nest.js 中，可以通过 useFactory 动态创建一个 Provider 来管理 Redis 客户端连接。
 
 如果需要缓存接口，可以自己创建拦截器。
-

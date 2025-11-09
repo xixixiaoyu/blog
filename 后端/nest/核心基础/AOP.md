@@ -13,7 +13,7 @@
 ## 什么是 AOP？
 AOP 就是一种编程思想，它允许你把那些“横跨”多个模块的通用功能（我们叫它“横切关注点”，Cross-Cutting Concerns）给拎出来，单独放到一个地方去管理。
 
-我们平常的后端服务很多都是基于 MC 架构：
+我们平常的后端服务很多都是基于 MVC 架构：
 
 ![画板](https://cdn.nlark.com/yuque/0/2025/jpeg/21596389/1747022799965-87e44715-76d1-4e53-b6e0-afbff499c489.jpeg)
 
@@ -183,4 +183,3 @@ export class AppModule {}
 [POST] 请求结束 - GET /demo - 7ms  (全局拦截器)
 [POST] 响应数据: { success: true, timestamp: '2023-05-17T12:34:56.789Z', path: '/demo', data: ['item1', 'item2', 'item3'] }  (全局拦截器)
 ```
-
