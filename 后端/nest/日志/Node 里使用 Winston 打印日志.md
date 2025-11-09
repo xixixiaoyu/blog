@@ -68,9 +68,9 @@ node index.js
 1. **Console（控制台）传输：** 将日志输出到控制台，方便开发人员在开发和调试过程中查看日志信息。
 2. **File（文件）传输：** 将日志写入文件，适用于长期存储和后续分析。
 3. **HTTP 传输：** 将日志通过 HTTP 请求发送到指定的远程服务器，方便集中管理和监控。
-4. **Database（数据库）传输：** 将日志信息存储到数据库中，便于后续查询和分析。
+4. **Stream（流）传输：** 将日志写入自定义的可写流（例如网络连接或进程间通信），用于灵活的日志管道。
 
-社区还有很多的 Transport，比如 **winston-mongodb**、**winston-redis**，就是把日志写入 mongodb 或 reids。
+社区还有很多的 Transport，比如 **winston-mongodb**、**winston-redis**，就是把日志写入 mongodb 或 redis。
 
 
 
@@ -171,7 +171,7 @@ logger.add(file)
 
 
 ## 日志级别
-winston 有 6 种级别的日志，从 0（最高优先级）到 6（最低优先级）：
+winston 有 7 种级别的日志，从 0（最高优先级）到 6（最低优先级）：
 
 1. **error** (0): 错误日志，记录系统无法运行的情况。
 2. **warn** (1): 警告信息，记录不正常但不影响系统运行的情况。
@@ -276,6 +276,5 @@ const logger = winston.createLogger({
 ```
 
 可以代码中 `throw new Error('This is an uncaught exception');` 自行测试下。
-
 
 
