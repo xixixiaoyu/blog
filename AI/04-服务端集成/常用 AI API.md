@@ -1,119 +1,70 @@
-# 写作提示 —— 常用 AI API
+# 写作提示：如何为你的公司聘请 AI 顾问 —— 主流 AI API 深度选型指南
 
-使用说明：
-- 生成主流 AI API 的工程对比与入门指南，帮助选型与快速集成。
+**核心目标**：为技术负责人、架构师和后端工程师撰写一篇关于如何选择和集成第三方 AI API 的深度指南。文章需通过一个核心类比 —— **“为你的公司聘请一位专业的外部 AI 顾问”** —— 来阐明 OpenAI、Anthropic、Google 等主流提供商的战略定位、技术权衡和集成实践。
 
-生成目标：
-- 介绍常见提供商（如 OpenAI、Anthropic、Google、Azure、国内平台、本地/私有化方案）。
-- 对比能力、价格、速率限制、稳定性与生态。
-- 提供统一调用示例（REST/WebSocket/SSE）、流式输出与函数调用示例。
+**核心类比**：
+- **AI API 提供商**：一家专业的“**咨询公司**”（如 OpenAI & Co., Anthropic 联合事务所）。
+- **你的应用**：你的“**公司**”。
+- **API 调用**：一次“**咨询会校**”。
+- **模型选择** (如 GPT-4o vs. Claude 3.5 Sonnet)：在“**资深合伙人**”和“**才华横溢的年轻顾问**”之间选择。
+- **函数调用**：为你的“顾问”配备完成任务所需的“**内部工具和权限**”。
+- **速率限制/成本**：顾问的“**可用工时**”和“**咨询费率**”。
+- **自托管方案** (vLLM/Ollama)：选择“**组建内部专家团队**”。
 
-大纲建议：
-1. 选型维度与优先级（能力、成本、稳定性、合规）
-2. 调用模式（REST、SSE、WebSocket）、流式与非流式差异
-3. 函数调用/工具使用（参数校验、错误处理）
-4. 本地/私有化方案与代理层（网关、负载均衡、降级）
-5. 常见坑与并发注意事项（速率、重试、退避）
-6. 版本与兼容策略（API 变更、SDK 更新）
+---
 
-输出格式要求：
-- Markdown；给出统一的最小调用示例与依赖版本。
-- 以表格或清单形式总结对比结论（文字版）。
+### **生成要求**
 
-质量检查清单：
-- 示例完整可运行或易于运行；包含流式与函数调用。
-- 选型标准明确，有具体场景建议。
-- 考虑本地化/私有化与代理层的工程现实。
+1.  **战略决策视角**：文章的核心应是引导读者像 CTO 一样思考，做出符合业务目标、成本预算和安全合规的长期合作决策。
+2.  **叙事驱动**：围绕“招聘”和“管理”AI 顾问的旅程展开，将技术细节（如流式传输、函数调用）无缝融入到“沟通协议”和“授权工具”等叙事框架中。
+3.  **权衡分析**：清晰地阐述不同“咨询公司”的优劣势。例如，OpenAI 的全面性 vs. Anthropic 在复杂推理和安全方面的专长。
+4.  **升华代码示例**：保留现有的高质量代码，并将其置于“如何与顾问建立通信”和“如何为顾问配备工具”的上下文中，解释其战略意义。
+5.  **工程实践**：强调代理/网关层作为“幕僚长”角色的重要性，负责统一管理、路由和监控所有“顾问”，实现降级策略和成本控制。
 
-默认技术栈（示例代码）：TypeScript + NestJS
+---
 
-OpenAI（Chat Completions）最小调用与流式示例：
+### **内容大纲 (建议)**
 
-依赖：`npm i openai`
+**引言：现代 CTO 的两难选择——到底该聘请谁？**
+-   提出核心问题：为产品注入智能，是该聘请外部专家（API），还是组建内部团队（自托管）？
+-   引入“AI 即顾问”的类比，介绍市场上的几家顶级“咨询公司”。
 
-```ts
-// src/openai.service.ts
-import { Injectable } from '@nestjs/common';
-import OpenAI from 'openai';
+**第一部分：咨询公司名录——顶尖人才一览**
+-   **OpenAI & Co. (行业巨头)**：如同麦肯锡，拥有全面的产品线（GPT-4o/mini），生态系统成熟，是行业标准制定者。品牌力强，但价格不菲。
+-   **Anthropic 联合事务所 (精品投行)**：如同顶级律所，以严谨、安全和处理复杂长文本（长上下文）见长。是处理高风险、需要深度推理任务的理想选择。
+-   **Google 的 Gemini 集团 (研究巨头)**：如同贝尔实验室，背靠强大的研究和基础设施，创新能力强，与 Google Cloud 生态深度绑定。
+-   **内部专家团队 (自托管)**：完全掌控数据、成本和定制化。需要投入资源进行“团队建设”（部署运维）。（此处可链接到“为 AI 工厂选择引擎”的文章）。
 
-@Injectable()
-export class OpenAIService {
-  private client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+**第二部分：面试流程——CTO 的决策矩阵**
+-   **工作职责是什么？(能力与性能)**：客服机器人 vs. 法律文档分析？将任务与“顾问”的专长匹配。
+-   **预算有多少？(成本)**：对比各家的“咨询费率”（Token 定价），分析短期与长期成本。
+-   **响应速度要求？(延迟与速率限制)**：实时聊天 vs. 离线报告？评估“顾问”的可用工时。
+-   **数据能否外流？(安全与合规)**：讨论数据隐私、驻留（如 Azure OpenAI）和行业合规性（HIPAA），这是“聘用”的关键否决项。
 
-  async nonStream(prompt: string) {
-    const r = await this.client.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-    });
-    return r.choices[0]?.message?.content ?? '';
-  }
+**第三部分：入职培训——与你的新顾问建立合作**
+-   **建立沟通协议 (REST & SSE)**：将流式（Stream）与非流式类比为“实时获取要点”与“等待完整报告”。
+    -   *此处可嵌入 OpenAI 和 Anthropic 的 `NestJS` 服务代码，作为“如何建立直连热线”的示例。*
+-   **授予工作权限 (函数调用/工具使用)**：将函数调用解释为“授权顾问使用内部工具”。
+    -   *此处可嵌入 `zod` 参数校验的代码，作为“确保顾问准确理解任务简报”的示例。*
 
-  async *stream(prompt: string) {
-    const s = await this.client.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      stream: true,
-    });
-    for await (const chunk of s) {
-      const delta = chunk.choices?.[0]?.delta?.content;
-      if (delta) yield delta;
-    }
-  }
-}
-```
+**第四部分：管理合作关系——工程实践的智慧**
+-   **避免顾问过劳 (速率限制与重试)**：将指数退避策略比作“在顾问忙不过来时，让他稍作休息”。
+-   **设立“幕僚长” (统一网关/代理层)**：构建一个统一的网关，作为管理所有“顾问”的中央枢纽。它负责：
+    -   **智能路由**：将请求分配给最合适的“顾问”。
+    -   **故障降级**：当 OpenAI“请假”时，自动切换到 Anthropic。
+    -   **预算控制**：通过缓存和统一限流来控制“咨询费用”。
+-   **跟进顾问的成长 (API 版本管理)**：讨论如何平滑地适应“顾问”的新技能（API 更新）。
 
-Anthropic（Messages API）最小调用示例：
+**结论：寻找你的最佳合作伙伴**
+-   总结：选择 AI 顾问是一个战略决策，需要综合考量能力、成本、安全和团队文化。
+-   没有“最好”的顾问，只有“最适合”你公司当前阶段和未来发展的合作伙伴。
 
-依赖：`npm i @anthropic-ai/sdk`
+---
 
-```ts
-// src/anthropic.service.ts
-import { Injectable } from '@nestjs/common';
-import Anthropic from '@anthropic-ai/sdk';
+### **质量检查清单**
 
-@Injectable()
-export class AnthropicService {
-  private client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
-
-  async nonStream(prompt: string) {
-    const r = await this.client.messages.create({
-      model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20240620',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
-    });
-    return r.content?.[0]?.type === 'text' ? r.content[0].text : '';
-  }
-}
-```
-
-函数调用示例（统一参数校验）：
-
-依赖：`npm i zod`
-
-```ts
-// src/tools.service.ts
-import { Injectable } from '@nestjs/common';
-import { z } from 'zod';
-
-const WeatherInput = z.object({ city: z.string(), date: z.string().optional() });
-
-@Injectable()
-export class ToolsService {
-  async callWeather(args: unknown) {
-    const input = WeatherInput.parse(args); // 参数校验
-    // 执行工具逻辑（伪代码）
-    return { tempC: 26, city: input.city, date: input.date ?? 'today' };
-  }
-}
-```
-
-选型建议（文字版）：
-- OpenAI：功能全面、生态成熟；成本与合规需评估。
-- Anthropic：长上下文与安全对齐较强；适合复杂推理与长文档。
-- vLLM/TGI/Ollama：私有化与成本可控；需考虑部署与维护成本、模型效果差异。
-- 国内平台：注意接口稳定性、速率限制与合规（数据出境、隐私）。
-
-并发与常见坑：
-- 速率限制：遵循官方速率并使用代理层限流与队列；对 429/503 加入退避重试。
-- JSON 与函数调用：严格使用 Schema 校验，避免幻觉参数；失败回退到纯文本回答。
-- 流式渲染：统一事件格式；前端按片段合并与代码块处理，避免闪烁。
+-   [ ] **类比有效性**：“AI 即顾问”的类比是否让选型过程更清晰、更具战略高度？
+-   [ ] **决策导向**：文章是否将技术对比转化为一系列实际的商业和产品问题？
+-   [ ] **代码整合**：代码示例是否自然地融入了“入职培训”和“授权”的叙事框架中？
+-   [ ] **架构价值**：统一网关（“幕僚长”）的战略价值是否被清晰地传达出来？
+-   [ ] **实践性**：文章是否为工程师提供了处理速率限制、版本更新等现实问题的可行策略？
