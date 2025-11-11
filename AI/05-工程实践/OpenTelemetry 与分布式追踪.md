@@ -1,98 +1,61 @@
-# 写作提示 —— OpenTelemetry 与分布式追踪
+# 写作提示 —— AI 分布式追踪：绘制探测车的完整“航行图”
 
-使用说明：
-- 生成跨前后端的分布式追踪方案，串联一次会话的端到端链路。
+## 核心类比：任务控制中心的“航行图”
 
-生成目标：
-- 设计 Trace/Span 与上下文传播（前端 → 代理层 → 模型服务 → 向量库）。
-- 在流式响应中记录事件与耗时；关联日志与指标。
-- 提供可视化与报表实践（仪表板、告警、根因分析）。
+在我们的“AI 任务控制中心”里，日志是探测车的“详细日记”，指标是“主控仪表盘”，而**分布式追踪 (Distributed Tracing) 则是为每一次复杂任务绘制的、分步骤的“实时航行图”**。
 
-大纲建议：
-1. 追踪模型与上下文传播（Trace/Span/ID）
-2. 前端埋点与链路起点（会话/消息 ID）
-3. 代理层与后端追踪（SSE/WS/gRPC 的 span 切分）
-4. 模型与检索层追踪（耗时与错误）
-5. 日志与指标的关联（统一 ID、采样率）
-6. 可视化、告警与根因分析（仪表板）
+当科学家发来指令——“穿越‘坚韧’陨石坑，分析 V-2 岩石样本”——你需要的不是零散的日志，而是一张从指令发出到任务完成的完整轨迹图。这张图清晰地展示了：
 
-输出格式要求：
-- Markdown；附最小追踪集成示例与字段约定。
-- 给出采样率与性能影响的建议。
+-   `指令接收 (前端)` -> `信号抵达火星网关 (API Gateway)` -> `路径规划 (业务逻辑)` -> `调用岩石成分数据库 (向量数据库)` -> `指令发送至模型 (LLM API)` -> `执行钻探 (流式响应开始)` -> `样本分析中 (流式响应进行中)` -> `任务完成 (流式响应结束)`
 
-质量检查清单：
-- 链路可串联；跨层标识统一，便于定位问题。
-- 采样与性能权衡合理；可视化清晰。
-- 与日志与评估形成闭环。
+这张图就是一条 **Trace (追踪)**，其中的每一个箭头步骤就是一个 **Span (跨度)**。而确保所有步骤都正确地记录在同一张图上的技术，就是 **Context Propagation (上下文传播)**——一个无形的“追踪信标”。
 
-默认技术栈：TypeScript + NestJS；OTLP（HTTP/GRPC）导出到可视化平台（Grafana Tempo/Jaeger）
+本文的目标，就是教你如何使用 OpenTelemetry 这一行业标准，为你的 AI 舰队构建强大的航行图绘制能力，让你能像一位经验丰富的飞行总监一样，对每一次任务的执行过程了如指掌。
 
-最小集成（Node/OpenTelemetry SDK）
+## 生成目标
 
-依赖：`npm i @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node @opentelemetry/exporter-trace-otlp-http`
+本文旨在提供一份关于 AI 应用分布式追踪的实战指南，帮助开发者：
 
-```ts
-// src/otel.ts
-import { NodeSDK } from '@opentelemetry/sdk-node';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+1.  **理解追踪哲学**：深入理解 Trace、Span 和上下文传播的核心概念及其在 AI 场景下的重要性。
+2.  **掌握核心工具**：学会使用 OpenTelemetry SDK 在 Node.js (NestJS) 和前端应用中进行自动和手动埋点。
+3.  **攻克流式追踪难题**：掌握为 SSE/WebSocket 等长连接创建和管理 Span 的关键技术，实现对流式响应的精细化追踪。
+4.  **实现全链路可视化**：能够将追踪数据导出到 Jaeger 或 Grafana Tempo 等工具，并通过分析火焰图快速定位性能瓶颈。
+5.  **建立统一观测体系**：学会将 `traceId` 与日志、指标关联，形成一个统一、可关联的观测性体系。
 
-const sdk = new NodeSDK({
-  traceExporter: new OTLPTraceExporter({ url: process.env.OTLP_HTTP_URL || 'http://localhost:4318/v1/traces' }),
-  instrumentations: [getNodeAutoInstrumentations()],
-});
+## 内容大纲（结构建议）
 
-export async function startOtel() {
-  await sdk.start();
-  console.log('OTel started');
-}
-export async function stopOtel() { await sdk.shutdown(); }
-```
+1.  **引言：绘制你的第一张“火星车航行图”**
+    *   引入“航行图”的类比，阐述为什么在复杂的 AI 调用链中，分布式追踪是“上帝视角”，是定位问题的最强武器。
 
-在应用入口启动 OTel：
+2.  **第一章：航行图解剖学 (Trace, Span, Context)**
+    *   **Trace**: 一次完整的任务旅程。
+    *   **Span**: 旅程中的每一个独立步骤（可以嵌套，如“行驶”Span 包含多个“转动轮子”子 Span）。
+    *   **Context**: 确保所有步骤都记录在同一张图上的“追踪信标”。
 
-```ts
-// src/main.ts
-import { startOtel } from './otel';
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+3.  **第二章：安装“追踪信标” (OpenTelemetry SDK 配置)**
+    *   提供基于 Node.js 的最小化 OpenTelemetry SDK 配置代码（如 `otel.ts`）。
+    *   解释自动埋点 (`instrumentations`) 的魔力：无需修改代码即可追踪 HTTP 请求、数据库调用等。
 
-async function bootstrap() {
-  await startOtel();
-  const app = await NestFactory.create(AppModule);
-  await app.listen(3000);
-}
-bootstrap();
-```
+4.  **第三章：绘制端到端航行轨迹 (全链路埋点实战)**
+    *   **起点：地球指挥中心 (前端)**：如何在前端生成会话 ID，并发起第一个带“追踪信标”的请求。
+    *   **中继站：火星网关 (后端)**：展示后端如何自动接收信标，并将其传播到下游服务。
+    *   **关键任务：实时监控钻探过程 (流式响应追踪)**：提供在 NestJS 中为 SSE/WS 手动创建和管理 Span 的代码示例，展示如何通过 `span.addEvent` 记录“钻探开始”、“获取样本块”等关键事件。
 
-上下文传播与标识约定：
-- 使用 W3C Trace Context：`traceparent`/`tracestate`；在 HTTP/SSE 响应头中返回 `traceparent`。
-- 自定义字段：`x-trace-id`、`x-session-id`、`x-message-id`；前端保存并在后续请求中携带。
+5.  **第四章：解读航行图 (可视化与根因分析)**
+    *   介绍 Jaeger 或 Grafana Tempo 的界面，解释如何解读火焰图。
+    *   案例分析：通过一个真实的火焰图截图，展示如何快速发现是“向量数据库检索太慢”还是“模型生成太慢”导致的高延迟。
 
-SSE/WS 的 Span 切分示例：
+6.  **第五章：聪明的遥测策略 (采样与关联)**
+    *   **采样 (Sampling)**：解释为什么不需要为每一次任务都绘制航行图。讨论基于概率或基于请求头（如 `x-force-trace`）的采样策略，实现成本与洞察的平衡。
+    *   **关联 (Correlation)**：强调在所有结构化日志中都必须包含 `traceId`，实现从“主仪表盘”或“航行图”一键跳转到“详细日记”。
 
-```ts
-// 在 SSE 控制器中手动创建 span 并记录事件
-import { context, trace } from '@opentelemetry/api';
+7.  **结论：从航行图到飞行直觉**
+    *   总结分布式追踪如何帮助团队建立对系统性能的直觉，实现从被动救火到主动优化的转变。
 
-const tracer = trace.getTracer('gateway');
-// 伪代码：每次连接一个 span
-const span = tracer.startSpan('sse_stream', undefined, context.active());
-span.setAttribute('model', 'gpt-4o-mini');
-span.addEvent('stream_start');
-// 在每个 delta 推送时（采样）记录事件与字节数
-span.addEvent('delta', { bytes: 64 });
-// 完成或取消时结束 span
-span.addEvent('stream_complete');
-span.end();
-```
+## 质量检查清单
 
-前端埋点与链路起点（文字版）：
-- 生成 `sessionId` 与 `messageId`；在首次请求时记录 `traceparent` 与这些 ID；
-- 在 SSE/WS 建立连接时，将 `sessionId/messageId` 作为查询参数或头部传递；
-- 渲染端记录片段耗时、撤销/取消事件；与后端统一 ID 关联。
-
-可视化与告警建议：
-- Tempo/Jaeger：查看端到端 Span（前端 → 网关 → 模型服务 → 检索服务）
-- 指标关联：将 Span 属性映射到指标（如模型、租户、延迟）；对错误率与超时进行告警；
-- 采样率：默认 1-10% 采样，故障时提升采样以便根因分析。
+-   **[核心类比]**：“航行图”的类比是否贯穿始终，并让技术概念更易于理解？
+-   **[代码实战]**：提供的 OpenTelemetry 配置和手动埋点代码是否清晰、可复制，并解决了流式追踪的痛点？
+-   **[可视化]**：是否通过图示或清晰的描述，让读者理解如何从火焰图中获得洞察？
+-   **[系统性]**：文章是否清晰地展示了追踪如何与日志、指标联动，形成 1+1+1 > 3 的效果？
+-   **[权衡讨论]**：是否对采样等实际工程中的权衡点给出了合理的建议？
