@@ -2,7 +2,7 @@
 前提：我们可以使用 `pnpm create vite react-app --template react-ts` 来创建一个 React 项目。
 
 ### 项目根目录创建 `.dockerignore` 文件
-```git
+```dockerignore
 # 依赖目录（构建时重新安装）
 node_modules
 .pnpm-store
@@ -168,7 +168,7 @@ cd nest-app
 ### 创建 `.dockerignore` 文件
 在项目根目录创建 `.dockerignore`：
 
-```plain
+```dockerignore
 # Git
 .git/
 .gitignore
@@ -253,7 +253,7 @@ COPY --from=builder --chown=nestjs:nestjs /usr/src/app/package.json ./package.js
 EXPOSE 3000
 
 # 启动应用
-CMD ["node", "dist/main"]
+CMD ["node", "dist/main.js"]
 ```
 
 ### 打包镜像
@@ -288,7 +288,7 @@ Nest 返回了，没问题。
 + Dockerfile 中的每一条指令（如 `RUN`, `COPY`, `ADD`）都会创建一层镜像。层数越多，镜像可能越大，构建和拉取也可能变慢。
 + **合并命令**：把多个 `RUN` 命令用 `&&` 连接起来，并在同一条 `RUN` 指令中清理缓存：
 
-```plain
+```dockerfile
 # ❌ 不推荐
 RUN apt-get update
 RUN apt-get install -y package1
@@ -304,7 +304,7 @@ RUN apt-get update && \
 + Docker 在构建镜像时会尝试重用之前构建的层，如果某一层对应的指令和文件没有变化，就会直接使用缓存。
 + **优化指令顺序**：把不经常变化的指令（比如安装固定版本的依赖）放在 Dockerfile 的前面，把经常变化的内容（比如复制源代码）放在后面。
 
-```git
+```dockerfile
 # 先复制不怎么变的 package.json 并安装依赖
 COPY package*.json ./
 RUN npm install
@@ -332,7 +332,7 @@ Nest 项目的 Dockerfile 就是一个很好的例子。
 + **定期更新基础镜像**：基础镜像也可能存在安全漏洞，定期拉取更新的版本并重建你的应用镜像是个好习惯。
 + **使用非 root 用户**：默认情况下，容器内的进程是以 `root` 用户身份运行的，这存在一定的安全风险。可以通过 `USER` 指令切换到非 `root` 用户。
 
-```git
+```dockerfile
 # 创建一个用户和用户组
 RUN addgroup -S myappgroup && adduser -S myappuser -G myappgroup
 # ... 其他指令 ...
@@ -346,14 +346,14 @@ USER myappuser
 
 🌰 新建一个 `test.js` 文件：
 
-```git
+```js
 console.log(process.env.name);
 console.log(process.env.age);
 ```
 
 创建 `Dockerfile`:
 
-```git
+```dockerfile
 FROM node:18-alpine
 
 WORKDIR /app
@@ -373,7 +373,7 @@ CMD ["node", "/app/test.js"]
 
 打包镜像：
 
-```git
+```bash
 docker build -t env-test:v1.0 .
 ```
 
@@ -381,7 +381,7 @@ docker build -t env-test:v1.0 .
 
 运行镜像：
 
-```git
+```bash
 docker run -it --rm env-test:v1.0
 ```
 
@@ -401,6 +401,5 @@ docker run -it --rm env-test:v1.0
 ![](https://cdn.nlark.com/yuque/0/2025/png/21596389/1748430975486-b4b96c5a-72cb-46ad-b3eb-30609eacfa65.png)
 
 ![](https://cdn.nlark.com/yuque/0/2025/png/21596389/1748430984820-2d264e2e-bea4-4fa5-b307-4b9c6d3eedeb.png)
-
 
 
