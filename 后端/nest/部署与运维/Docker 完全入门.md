@@ -12,15 +12,15 @@ Docker 镜像确保了软件的分发和运行标准。无论是在你的笔记�
 
 
 ## Docker 的核心优势
-**🎯**** **彻底解决环境差异问题，确保开发、测试、生产环境的高度一致性。
+**🎯** 彻底解决环境差异问题，确保开发、测试、生产环境的高度一致性。
 
-**⚡**** **相比传统虚拟机，Docker 容器启动速度达到秒级，资源占用更少，运行效率更高。
+**⚡** 相比传统虚拟机，Docker 容器启动速度达到秒级，资源占用更少，运行效率更高。
 
-**🔒**** **每个应用运行在独立的容器中，互不影响，可以安全地运行不同版本依赖的服务。
+**🔒** 每个应用运行在独立的容器中，互不影响，可以安全地运行不同版本依赖的服务。
 
-**🚀**** **一次构建，处处运行。简化部署流程，实现应用的快速迭代与弹性伸缩。
+**🚀** 一次构建，处处运行。简化部署流程，实现应用的快速迭代与弹性伸缩。
 
-**☁️**** **主流云平台（AWS、阿里云、腾讯云等）都提供容器服务，可直接部署 Docker 镜像。
+**☁️** 主流云平台（AWS、阿里云、腾讯云等）都提供容器服务，可直接部署 Docker 镜像。
 
 
 
@@ -124,7 +124,7 @@ Docker Desktop 提供了一个图形化界面，方便我们查看和管理本�
     - 我们需要把宿主机的一个端口（比如 80）映射到容器的 `80` 端口。这样，我们访问宿主机的 `80` 端口时，请求就会被转发到容器内的 Nginx 服务。格式是 `宿主机端口:容器端口`，例如 `80:80`。
 + **Volumes (数据卷挂载)**：
     - 这是实现数据持久化和内容替换的关键。Nginx 默认的网站根目录在容器内的 `/usr/share/nginx/html`。
-    - 我们可以把宿主机的一个目录 `/tmp/test `挂载到容器的 `/usr/share/nginx/html` 目录。
+    - 我们可以把宿主机的一个目录 `/tmp/test` 挂载到容器的 `/usr/share/nginx/html` 目录。
     - **Host path (宿主机路径)**：填写自己本地的目录。
     - **Container path (容器内路径)**：填写 Nginx 镜像预期的内容路径，通常是 `/usr/share/nginx/html`。
 + **Environment variables (环境变量)**：可以为容器设置一些环境变量，供容器内运行的程序读取。这里 Nginx 暂时用不到。
@@ -139,13 +139,11 @@ Docker Desktop 提供了一个图形化界面，方便我们查看和管理本�
 ## 验证数据卷挂载
 1. **在宿主机创建文件**：
 
-先进入/tmp/test 目录下：
+创建并进入 `/tmp/test` 目录：
 
 ```bash
+mkdir -p /tmp/test
 cd /tmp/test
-
-# 如果没有这个目录，先创建
-mkdir /tmp/test
 ```
 
 在这个目录添加 index.html：
@@ -209,9 +207,9 @@ docker run --name nginx-test2 -p 81:80 -v /tmp/test:/usr/share/nginx/html -e KEY
 
 + `docker run`: 运行镜像以创建并启动一个新容器。
 + `--name nginx-test2`: 给容器命名为 `nginx-test2`。
-+ `-p 81:80`: 将宿主机的 `81` 端口映射到容器的 `80` 端口。
-+ ` -v /tmp/test:/usr/share/nginx/html`: 挂载数据卷。
-    - `/tmp/test:/` 是宿主机路径 ( Mac 示例，Windows 请使用对应路径如 `D:\my-nginx-content`)。
+    + `-p 81:80`: 将宿主机的 `81` 端口映射到容器的 `80` 端口。
+    + ` -v /tmp/test:/usr/share/nginx/html`: 挂载数据卷。
+    - `/tmp/test` 是宿主机路径 (Mac 示例，Windows 请使用对应路径如 `D:\my-nginx-content`)。
     - `/usr/share/nginx/html` 是容器内路径。
     - 默认情况下，这种挂载是**可读写** （`rw`）的。如果希望容器内对这个挂载目录只有**只读权限**，可以在末尾添加 `:ro`，例如：`-v /tmp/test:/usr/share/nginx/html:ro`。
 + `-e KEY1=VALUE1`： 设置环境变量，容器内部的应用程序可以读取这个环境变量。
@@ -654,7 +652,7 @@ docker build -t myapp:latest .
 `.` (点)：指定当前目录为构建上下文。Docker 守护进程会加载此目录中的所有文件（遵循 `.dockerignore` 规则）用于构建。
 
 ### 常用参数
-1. **指定 Dockerfile 文件 **
+1. **指定 Dockerfile 文件**
 
 当 Dockerfile 文件名不是默认的 Dockerfile 或不在构建上下文根目录时，需要使用 -f 参数指定文件路径。 
 
@@ -670,7 +668,7 @@ docker build -f <dockerfile-path> -t <image-name>:<tag> <build-context>
 docker build -f /path/to/MyDockerfile -t myapp:1.0 .
 ```
 
-2. **传递构建时参数 (**`**--build-arg**`**)：**
+2. **传递构建时参数 (`--build-arg`)：**
 
 ```dockerfile
 # Dockerfile 中定义
@@ -679,7 +677,7 @@ ENV APP_VERSION=${VERSION}
 RUN echo "Building version ${APP_VERSION}"
 ```
 
-```dockerfile
+```bash
 # 构建命令
 docker build --build-arg VERSION=1.2.3 -t myapp:1.2.3 .
 ```
@@ -688,7 +686,7 @@ docker build --build-arg VERSION=1.2.3 -t myapp:1.2.3 .
 
 当缓存可能导致问题，或需要确保每一步都重新执行时：
 
-```dockerfile
+```bash
 docker build --no-cache -t myapp:latest .
 ```
 
@@ -696,13 +694,13 @@ docker build --no-cache -t myapp:latest .
 
 用于多平台构建，例如在 Apple Silicon Mac 上构建 x86_64 镜像：
 
-```dockerfile
+```bash
 docker build --platform linux/amd64 -t myapp-amd64:latest .
 ```
 
 5. **其他实用参数**
 
-```dockerfile
+```bash
 # 静默模式，减少输出信息
 docker build -q -t myapp:latest .
 
@@ -776,7 +774,7 @@ build/
 ```
 
 ### 编写 Dockerfile
-在 `docker test` 目录下创建一个名为 `Dockerfile` (没有扩展名) 的文件：
+在 `my-custom-nginx` 目录下创建一个名为 `Dockerfile` (没有扩展名) 的文件：
 
 ```dockerfile
 # my-custom-nginx/Dockerfile
@@ -836,7 +834,7 @@ CMD ["nginx", "-g", "daemon off;"]
 docker run --name my-app-test2 -d -v ./:/usr/share/nginx/html -p 8888:80 my-app:v1
 ```
 
-使用 `-v ./:/usr/share/nginx/htm`：当前目录（./）被映射到容器内的 `/usr/share/nginx/html` 目录。这意味着对宿主机当前目录的任何更改都会反映在容器的 `/usr/share/nginx/html` 目录中，反之亦然。
+使用 `-v ./:/usr/share/nginx/html`：当前目录（./）被映射到容器内的 `/usr/share/nginx/html` 目录。这意味着对宿主机当前目录的任何更改都会反映在容器的 `/usr/share/nginx/html` 目录中，反之亦然。
 
 修改 index.html 文件：
 
@@ -847,4 +845,3 @@ docker run --name my-app-test2 -d -v ./:/usr/share/nginx/html -p 8888:80 my-app:
 ![](https://cdn.nlark.com/yuque/0/2025/png/21596389/1748160471887-9fa4dc7f-0a94-42bb-8786-8a8a730e58cc.png)
 
 成功。
-
