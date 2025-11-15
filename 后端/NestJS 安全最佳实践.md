@@ -188,6 +188,8 @@ npm i helmet
 
 ```typescript
 // main.ts
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
 import helmet from 'helmet';
 
 async function bootstrap() {
@@ -306,8 +308,8 @@ npm install csurf cookie-parser
 
 ```typescript
 // main.ts
-import * as cookieParser from 'cookie-parser';
-import * as csurf from 'csurf';
+import cookieParser from 'cookie-parser';
+import csurf from 'csurf';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -328,10 +330,12 @@ npm install @fastify/csrf-protection
 ```typescript
 // main.ts
 import csrfProtection from '@fastify/csrf-protection';
+import cookie from '@fastify/cookie';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, new FastifyAdapter());
+  await app.register(cookie, { secret: process.env.COOKIE_SECRET });
   await app.register(csrfProtection, { cookieOpts: { signed: true } });
   // ...
 }
@@ -427,7 +431,7 @@ const app = await NestFactory.create(AppModule, new FastifyAdapter({ trustProxy:
 
 ```typescript
 const app = await NestFactory.create(AppModule);
-app.set('trust proxy', 1);
+app.getHttpAdapter().getInstance().set('trust proxy', 1);
 ```
 
 #### 4. 验证与排查
