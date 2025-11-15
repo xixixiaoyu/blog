@@ -106,7 +106,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
   app.use((req, res, next) => {
-    req['realIp'] = req.get('X-Forwarded-For') || req.ip;
+    const xff = req.get('X-Forwarded-For');
+    req['realIp'] = xff ? xff.split(',')[0].trim() : req.ip;
     next();
   });
   await app.listen(3000);

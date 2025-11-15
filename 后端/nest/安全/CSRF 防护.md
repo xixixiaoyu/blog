@@ -25,7 +25,7 @@ import { doubleCsrf } from 'csrf-csrf';
 const { doubleCsrfProtection } = doubleCsrf({
   getSecret: () => 'your-secret', // 建议使用环境变量
   cookieName: '__Host-csrf',
-  cookieOptions: { secure: true, sameSite: 'strict' },
+  cookieOptions: { secure: true, sameSite: 'strict', path: '/' },
 });
 
 async function bootstrap() {
@@ -47,7 +47,7 @@ import { doubleCsrf } from 'csrf-csrf';
 const { generateToken } = doubleCsrf({
   getSecret: () => 'your-secret',
   cookieName: '__Host-csrf',
-  cookieOptions: { secure: true, sameSite: 'strict' },
+  cookieOptions: { secure: true, sameSite: 'strict', path: '/' },
 });
 
 @Controller('auth')

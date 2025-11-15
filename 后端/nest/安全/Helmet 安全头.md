@@ -128,15 +128,15 @@ app.use((req, res, next) => {
   helmet.contentSecurityPolicy({
     useDefaults: true,
     directives: {
-      "default-src": ["'self'"],
-      "script-src": ["'self'", `'nonce-${res.locals.cspNonce}'`],
-      "style-src": ["'self'", "https:", "'unsafe-inline'"], // 尽量改为 nonce/hash，减少 'unsafe-inline'
-      "img-src": ["'self'", "data:", "https:"],
-      "connect-src": ["'self'", process.env.API_ORIGIN ?? ""],
-      "font-src": ["'self'", "https:"],
-      "frame-ancestors": ["'self'"],
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", `'nonce-${res.locals.cspNonce}'`],
+      styleSrc: ["'self'", "https:", "'unsafe-inline'"], // 尽量改为 nonce/hash，减少 'unsafe-inline'
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", process.env.API_ORIGIN].filter(Boolean),
+      fontSrc: ["'self'", "https:"],
+      frameAncestors: ["'self'"],
       // 可选：自动升级混合内容（所有 http 资源尝试升级到 https）
-      "upgrade-insecure-requests": [],
+      upgradeInsecureRequests: true,
     },
   })(req, res, next);
 });
