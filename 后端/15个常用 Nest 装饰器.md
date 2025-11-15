@@ -27,7 +27,7 @@ nest new all-decorator -p npm
 
 
 ## @Optional、@Inject
-创建可选对象（无依赖注入），可以用 `@Optional` 声明一下，这样没有对应的 provider 也能正常创建这个对象。
+可选依赖注入可以用 `@Optional` 声明，这样在没有对应 provider 时也不会抛出错误。
 
 ![](https://cdn.nlark.com/yuque/0/2023/png/21596389/1686408762999-a056f8a2-43d9-4e5a-8691-ffe8cd419d3b.png)
 
@@ -56,7 +56,7 @@ filter 是处理抛出的未捕获异常，通过 `@Catch` 来指定处理的异
 
 
 ## @Body
-如果是 post、put、patch** **请求，可以通过 @Body 取到 body 部分：
+如果是 post、put、patch 请求，可以通过 @Body 取到 body 部分：
 
 ![](https://cdn.nlark.com/yuque/0/2023/png/21596389/1686447899628-8c81c1ec-c142-424d-b6d5-e56eff03ff53.png)
 
@@ -129,9 +129,7 @@ Nest 这么设计是为了避免相互冲突。
 
 
 ## @Next
-除了注入 @Res 不会返回响应外，注入 @Next 也不会。
-
-当你有两个 handler 来处理同一个路由的时候，可以在第一个 handler 里注入 next，调用它来把请求转发到第二个 handler。
+在基于 Express 的适配器下，`@Next()` 可获取 `next` 函数用于中间件链的传递。通常不在控制器中用于转发到另一处理器。
 
 ![](https://cdn.nlark.com/yuque/0/2024/png/21596389/1709089130298-cb4e97de-f7ac-4041-82af-a6a8c68f8a61.png)
 
@@ -156,4 +154,3 @@ handler 默认返回的是 200 的状态码，你可以通过 @HttpCode 修改�
 
 
 <font style="background-color:rgba(255, 255, 255, 0);"></font>
-
