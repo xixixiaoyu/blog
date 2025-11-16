@@ -102,13 +102,16 @@ jobs:
       - name: Run Linting
         run: npm run lint
 
-      # Step 5: 运行测试
-      # 执行单元测试和 e2e 测试
+      # Step 5: 运行单元测试
       # --watchAll=false 参数至关重要，它告诉测试套件不要进入监听模式，否则 CI 会卡住
-      - name: Run Tests
+      - name: Run Unit Tests
         run: npm run test -- --watchAll=false
 
-      # Step 6: 构建项目
+      # Step 6: 运行 e2e 测试
+      - name: Run E2E Tests
+        run: npm run test:e2e -- --watchAll=false
+
+      # Step 7: 构建项目
       # 验证项目是否可以被成功编译，这是发布前的最后一步验证
       - name: Build Project
         run: npm run build

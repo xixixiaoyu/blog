@@ -143,7 +143,7 @@ docker ps -a
 docker logs -f nginx-test
 
 # 进入容器内部执行命令（打开一个交互式 shell）
-docker exec -it nginx-test /bin/bash
+docker exec -it nginx-test /bin/sh
 
 # 停止容器
 docker stop nginx-test
@@ -489,19 +489,19 @@ export class AppModule {}
 
 ```bash
 # 启动所有服务（-d 表示后台运行）
-docker-compose up -d
+docker compose up -d
 
 # 如果需要重新构建镜像再启动
-docker-compose up -d --build
+docker compose up -d --build
 
 # 查看所有服务的日志
-docker-compose logs -f
+docker compose logs -f
 
 # 停止并移除所有相关的容器、网络
-docker-compose down
+docker compose down
 
 # 如果还想删除数据卷
-docker-compose down -v
+docker compose down -v
 ```
 
 ## Part 4: 总结与命令参考
