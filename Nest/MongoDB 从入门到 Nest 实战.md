@@ -46,7 +46,7 @@ MongoDB 是一种非关系型数据库，使用文档存储（document store）�
 
 看到最后的 `waiting for connections` 则表明服务已经启动成功。
 
-然后可以使用 `mongo` 命令连接本机的 MongoDB 服务：
+然后可以使用 `mongosh` 命令连接本机的 MongoDB 服务：
 
 ![](https://cdn.nlark.com/yuque/0/2023/png/21596389/1680056853971-f27d88b3-dbb2-43f2-a954-9c96f24254cd.png)
 
@@ -173,46 +173,46 @@ const PersonSchema = new mongoose.Schema({
 
 ```javascript
 // 插入单条
-PersonModel.create({ name: '张三' });
+Person.create({ name: '张三' });
 
 // 批量插入
-PersonModel.insertMany([{ name: '李四' }, { name: '王五' }]);
+Person.insertMany([{ name: '李四' }, { name: '王五' }]);
 ```
 
 #### 删除 (Delete)
 
 ```javascript
 // 删除单条
-PersonModel.deleteOne({ _id: 'some-id' });
+Person.deleteOne({ _id: 'some-id' });
 
 // 批量删除
-PersonModel.deleteMany({ name: '张三' });
+Person.deleteMany({ name: '张三' });
 ```
 
 #### 更新 (Update)
 
 ```javascript
 // 更新单条
-PersonModel.updateOne({ _id: 'some-id' }, { age: 30 });
+Person.updateOne({ _id: 'some-id' }, { age: 30 });
 
 // 批量更新
-PersonModel.updateMany({ name: '李四' }, { age: 31 });
+Person.updateMany({ name: '李四' }, { age: 31 });
 ```
 
 #### 查询 (Read)
 
 ```javascript
 // 查询单条
-PersonModel.findOne({ name: '张三' });
+Person.findOne({ name: '张三' });
 
 // 根据 ID 查询
-PersonModel.findById('some-id');
+Person.findById('some-id');
 
 // 查询所有
-PersonModel.find();
+Person.find();
 
 // 条件查询
-PersonModel.find({ age: { $gt: 18 } });
+Person.find({ age: { $gt: 18 } });
 ```
 
 ### 条件与高级查询
@@ -233,13 +233,13 @@ PersonModel.find({ age: { $gt: 18 } });
 **正则匹配**
 
 ```javascript
-db.students.find({ name: /imissyou/ });
+Person.find({ name: /imissyou/ });
 ```
 
 **个性化读取**
 
 ```javascript
-PersonModel.find()
+Person.find()
   .select({ _id: 0, name: 1, age: 1 }) // 字段筛选：0-排除，1-包含
   .sort({ age: -1 }) // 排序：1-升序，-1-降序
   .skip(10) // 跳过前 10 条
@@ -300,7 +300,7 @@ export class Dog {
   @Prop()
   age: number;
 
-  @Prop([String])
+  @Prop({ type: [String] })
   tags: string[];
 }
 
@@ -313,12 +313,12 @@ export const DogSchema = SchemaFactory.createForClass(Dog);
 在 `src/dog/dto/create-dog.dto.ts` 中定义数据验证规则：
 
 ```typescript
-import { IsNotEmpty, IsNumber, IsString, Length } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, MinLength } from 'class-validator';
 
 export class CreateDogDto {
   @IsString()
   @IsNotEmpty()
-  @Length(3)
+  @MinLength(3)
   name: string;
 
   @IsNumber()
@@ -356,14 +356,14 @@ export class DogModule {}
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Dog } from './entities/dog.entity';
+import { Dog, DogDocument } from './entities/dog.entity';
 import { CreateDogDto } from './dto/create-dog.dto';
 import { UpdateDogDto } from './dto/update-dog.dto';
 
 @Injectable()
 export class DogService {
   @InjectModel(Dog.name)
-  private dogModel: Model<Dog>;
+  private dogModel: Model<DogDocument>;
 
   create(createDogDto: CreateDogDto) {
     const dog = new this.dogModel(createDogDto);

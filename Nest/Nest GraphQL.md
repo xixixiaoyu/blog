@@ -82,7 +82,7 @@ NestJS 提供了非常优雅的方式来构建 GraphQL 应用，它主要通过�
 **第一步：安装依赖**
 
 ```bash
-npm install @nestjs/graphql @nestjs/apollo graphql apollo-server-express
+npm install @nestjs/graphql @nestjs/apollo graphql @apollo/server
 # class-validator 和 class-transformer 用于 DTO 验证
 npm install class-validator class-transformer
 ```
@@ -95,6 +95,7 @@ import { Module } from '@nestjs/common'
 import { GraphQLModule } from '@nestjs/graphql'
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo'
 import { join } from 'path'
+import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default'
 
 @Module({
   imports: [
@@ -102,8 +103,7 @@ import { join } from 'path'
       driver: ApolloDriver,
       // 自动生成 schema 文件，方便查看和调试
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
-      // 开发环境下开启 playground，一个可以测试 GraphQL 的 UI 界面
-      playground: true,
+      plugins: [ApolloServerPluginLandingPageLocalDefault()],
     }),
     // ... 其他模块
   ],
@@ -120,11 +120,10 @@ export class AppModule {}
 import { Field, ID, ObjectType, InputType } from '@nestjs/graphql'
 import { IsEmail, IsNotEmpty } from 'class-validator'
 
-// @ObjectType() 告诉 NestJS，这个类对应 GraphQL 的一个 "type"
 @ObjectType('User')
 export class User {
-  @Field(() => ID) // 使用 @Field 来描述 GraphQL 字段
-  id: number
+  @Field(() => ID)
+  id: string
 
   @Field()
   name: string
@@ -133,11 +132,8 @@ export class User {
   email: string
 }
 
-// @InputType() 告诉 NestJS，这个类对应 GraphQL 的一个 "input"
-// 它专门用于 Mutation 的参数
 @InputType()
 export class CreateUserInput {
-  // class-validator 的装饰器可以在这里直接使用，NestJS 会自动处理验证
   @Field()
   @IsNotEmpty()
   name: string
@@ -155,28 +151,23 @@ Resolver 是处理请求的地方。
 
 ```typescript
 // src/users/users.resolver.ts
-import { Resolver, Query, Mutation, Args } from '@nestjs/graphql'
+import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql'
 import { User, CreateUserInput } from './dto/user.dto'
 import { UsersService } from './users.service'
 
-@Resolver(() => User) // 声明这个 Resolver 主要负责处理 User 类型的请求
+@Resolver(() => User)
 export class UsersResolver {
-  // 注入 Service，保持 Resolver 的简洁，业务逻辑交给 Service
   constructor(private readonly usersService: UsersService) {}
 
-  // @Query 将此方法标记为 Schema 中的一个 Query 字段
-  // { nullable: true } 表示当找不到用户时，可以返回 null
   @Query(() => User, { name: 'user', nullable: true })
-  async getUser(@Args('id', { type: () => ID }) id: number): Promise<User> {
+  async getUser(@Args('id', { type: () => ID }) id: string): Promise<User> {
     return this.usersService.findById(id)
   }
 
-  // @Mutation 将此方法标记为 Schema 中的一个 Mutation 字段
   @Mutation(() => User, { name: 'createUser' })
   async createUser(
-    @Args('input') createUserInput: CreateUserInput, // 使用 DTO 作为参数类型
+    @Args('input') createUserInput: CreateUserInput,
   ): Promise<User> {
-    // NestJS 会自动根据 CreateUserInput 的验证规则来校验输入
     return this.usersService.create(createUserInput)
   }
 }
@@ -194,20 +185,19 @@ import { User, CreateUserInput } from './dto/user.dto'
 
 @Injectable()
 export class UsersService {
-  // 假设这是我们内存中的“数据库”
   private readonly users: User[] = []
   private nextId = 1
 
   async create(createUserInput: CreateUserInput): Promise<User> {
     const newUser = {
-      id: this.nextId++,
+      id: String(this.nextId++),
       ...createUserInput,
     }
     this.users.push(newUser)
     return newUser
   }
 
-  async findById(id: number): Promise<User | undefined> {
+  async findById(id: string): Promise<User | undefined> {
     return this.users.find(user => user.id === id)
   }
 }
@@ -227,7 +217,7 @@ import { UsersService } from './users.service'
 export class UsersModule {}
 ```
 
-现在，启动你的 NestJS 应用，访问 `http://localhost:3000/graphql`，你就能看到 Apollo Playground 了。你可以尝试执行如下查询和变更：
+现在，启动你的 NestJS 应用，访问 `http://localhost:3000/graphql`，你就能看到 Apollo Sandbox 了。你可以尝试执行如下查询和变更：
 
 ```graphql
 # 创建一个用户
@@ -245,6 +235,22 @@ query {
     name
   }
 }
+```
+
+为确保 DTO 验证生效，请在应用入口启用全局验证管道：
+
+```typescript
+// src/main.ts
+import { NestFactory } from '@nestjs/core'
+import { AppModule } from './app.module'
+import { ValidationPipe } from '@nestjs/common'
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule)
+  app.useGlobalPipes(new ValidationPipe())
+  await app.listen(3000)
+}
+bootstrap()
 ```
 
 ### 总结

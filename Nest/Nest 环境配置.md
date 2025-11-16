@@ -203,16 +203,11 @@ ConfigModule.forRoot({
 
 **src/config/config.ts**
 ```typescript
-// 我们甚至可以从数据库或其他异步来源获取配置
-const getDbPort = async () => {
-  return Promise.resolve(3306);
-};
-
-export default async () => ({
-  port: parseInt(process.env.PORT, 10) || 3000,
+export default () => ({
+  port: parseInt(process.env.PORT ?? '3000', 10),
   database: {
     host: process.env.DATABASE_HOST || 'localhost',
-    port: await getDbPort(),
+    port: Number(process.env.DATABASE_PORT) || 3306,
   },
 });
 ```
