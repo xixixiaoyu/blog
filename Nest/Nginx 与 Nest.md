@@ -1,6 +1,3 @@
-
-# Nginx 与 NestJS 部署运维完全指南
-
 ## 前言
 
 在现代 Web 开发中，Nginx 与 NestJS 的组合堪称经典。Nginx 以其卓越的性能成为处理网络流量的瑞士军刀，而 NestJS 则为构建高效、可扩展的 Node.js 服务器端应用程序提供了坚实的架构。
@@ -84,7 +81,7 @@ Docker 是部署 Nginx 的最佳方式之一。
     ```bash
     # 将容器内的默认配置文件拷贝到宿主机当前目录
     docker cp my-nginx:/etc/nginx/conf.d/default.conf .
-
+    
     # 将宿主机修改后的配置文件拷贝回容器
     docker cp default.conf my-nginx:/etc/nginx/conf.d/
     ```
@@ -396,9 +393,3 @@ server {
 此配置完成了两件事：
 1.  创建一个 `server` 块，将所有来自 80 端口的 HTTP 流量通过 301 重定向到 HTTPS。
 2.  主要的 `server` 块监听 443 端口，配置 SSL 证书，并像之前一样将解密后的流量代理给 NestJS。
-
-## 结语
-
-通过本指南，我们从 Nginx 和 NestJS 的基本原理出发，系统地学习了如何将它们高效地结合起来，构建了一个健壮、可扩展且安全的 Web 服务架构。从简单的反向代理，到复杂的负载均衡和灰度发布，Nginx 强大的功能为 NestJS 应用的部署和运维提供了无限可能。
-
-掌握这些知识，你将能更自信地设计和管理你的生产环境，从容应对高流量挑战。
