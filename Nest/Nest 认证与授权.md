@@ -306,18 +306,17 @@ npm install --save-dev @types/passport-local @types/passport-jwt
 
     ```typescript
     // src/user/user.service.ts
-    import { Injectable } from '@nestjs/common';
+    import { Injectable, OnModuleInit } from '@nestjs/common';
     import * as bcrypt from 'bcrypt';
     
     @Injectable()
-    export class UserService {
-      private users;
-    
-      constructor() {
-        // 在构造函数中初始化，以便使用 async/await
-        this.initializeUsers();
+    export class UserService implements OnModuleInit {
+      private users: Array<{ userId: number; username: string; password: string; roles: string[] }> | null = null;
+
+      async onModuleInit() {
+        await this.initializeUsers();
       }
-    
+
       private async initializeUsers() {
         this.users = [
           {
@@ -334,11 +333,10 @@ npm install --save-dev @types/passport-local @types/passport-jwt
           },
         ];
       }
-    
+
       async findOne(username: string) {
-        // 确保 users 已经初始化
         if (!this.users) await this.initializeUsers();
-        return this.users.find((user) => user.username === username);
+        return this.users!.find((user) => user.username === username);
       }
     }
     ```
@@ -483,7 +481,7 @@ npm install --save-dev @types/passport-local @types/passport-jwt
     
       async validate(payload: any) {
         // payload 是解码后的 JWT 内容
-        return { userId: payload.sub, username: payload.username, roles: payload.roles, permissions: payload.permissions };
+        return { userId: payload.sub, username: payload.username, roles: payload.roles };
       }
     }
     ```

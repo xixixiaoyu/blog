@@ -529,11 +529,12 @@ export class UploadController {
 ```typescript
 import { Body, BadRequestException, UploadedFile, UseInterceptors } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
+import * as multer from 'multer'
 import { existsSync, writeFileSync } from 'fs'
 import { join } from 'path'
 
 @Post('chunk')
-@UseInterceptors(FileInterceptor('chunk'))
+@UseInterceptors(FileInterceptor('chunk', { storage: multer.memoryStorage() }))
 uploadChunk(
   @UploadedFile() chunk: Express.Multer.File,
   @Body() body: { index: string; uploadId: string },

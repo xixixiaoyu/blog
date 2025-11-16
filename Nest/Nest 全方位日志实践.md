@@ -30,17 +30,12 @@ Nest 支持以下日志级别，从最详细到最严重：`verbose`、`debug`�
 // main.ts
 import { ConsoleLogger, Logger } from '@nestjs/common';
 
-// 禁用彩色输出（适合生产环境）
+// 使用自定义 LoggerService 时传入实例
 const app = await NestFactory.create(AppModule, {
-  logger: new ConsoleLogger({ colors: false })
+  logger: new ConsoleLogger()
 });
 
-// 添加自定义前缀
-const app = await NestFactory.create(AppModule, {
-  logger: new ConsoleLogger({ prefix: 'MyApp' })
-});
-
-// 启用时间戳
+// 在业务代码中通过 Logger 启用时间戳与上下文
 const logger = new Logger('MyService', { timestamp: true });
 ```
 
@@ -222,23 +217,23 @@ await app.listen(3000);
         });
       }
 
-      log(message: string, context: string) {
+      log(message: string, context?: string) {
         this.logger.info(message, { context });
       }
 
-      error(message: string, trace: string, context: string) {
+      error(message: string, trace?: string, context?: string) {
         this.logger.error(message, { context, trace });
       }
 
-      warn(message: string, context: string) {
+      warn(message: string, context?: string) {
         this.logger.warn(message, { context });
       }
 
-      debug(message: string, context: string) {
+      debug(message: string, context?: string) {
         this.logger.debug(message, { context });
       }
 
-      verbose(message: string, context: string) {
+      verbose(message: string, context?: string) {
         this.logger.verbose(message, { context });
       }
     }
@@ -380,6 +375,8 @@ await app.listen(3000);
 // ...
 import { HttpService } from '@nestjs/axios';
 import * as iconv from 'iconv-lite';
+import { from, Observable } from 'rxjs';
+import { mergeMap, tap } from 'rxjs/operators';
 
 // ...
 constructor(
@@ -408,14 +405,32 @@ private async getCityFromIp(ip?: string): Promise<string> {
     }
 }
 
-async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
-    // ...
-    const city = await this.getCityFromIp(clientIp);
-    this.logger.debug(
-      `[Request] ${method} ${path} - IP: ${clientIp} (${city}) ...`,
-      handlerName,
+intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    // 省略前置获取 request/response 等代码
+    const request = context.switchToHttp().getRequest<Request>();
+    const response = context.switchToHttp().getResponse<Response>();
+    const handlerName = `${context.getClass().name}.${context.getHandler().name}`;
+    const { method, path } = request;
+    const clientIp = request.headers['x-forwarded-for'] as string || request.ip;
+    const startTime = Date.now();
+
+    return from(this.getCityFromIp(clientIp)).pipe(
+      mergeMap((city) => {
+        this.logger.debug(
+          `[Request] ${method} ${path} - IP: ${clientIp} (${city}) ...`,
+          handlerName,
+        );
+        return next.handle().pipe(
+          tap(() => {
+            const duration = Date.now() - startTime;
+            this.logger.log(
+              `[Response] ${method} ${path} - IP: ${clientIp} - Status: ${response.statusCode} - Duration: ${duration}ms`,
+              handlerName,
+            );
+          }),
+        );
+      }),
     );
-    // ...
 }
 ```
 
