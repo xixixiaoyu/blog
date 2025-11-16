@@ -1,5 +1,3 @@
-# 从理论到实践：深入理解 NestJS 微服务
-
 ## 为什么需要微服务？
 
 在深入 NestJS 的实现之前，我们不妨先思考一个更根本的问题：**为什么需要微服务？**
@@ -148,7 +146,7 @@ nest new notification-service
     // notification-service/src/app.controller.ts
     import { Controller } from '@nestjs/common';
     import { MessagePattern, Payload } from '@nestjs/microservices';
-
+    
     @Controller()
     export class AppController {
       // 监听名为 'notification_email_sent' 的消息
@@ -246,11 +244,11 @@ nest new notification-service
     // order-service/src/app.controller.ts
     import { Controller, Post, Body } from '@nestjs/common';
     import { AppService } from './app.service';
-
+    
     @Controller('orders')
     export class AppController {
       constructor(private readonly appService: AppService) {}
-
+    
       @Post()
       createOrder(@Body() orderData: { userId: number; items: string[] }) {
         return this.appService.createOrder(orderData);
@@ -359,5 +357,3 @@ NestJS 通过以下方式极大地简化了微服务开发：
 *   **容错与熔断**：如果 `notification-service` 挂了，`order-service` 会一直等待吗？（可以考虑使用 `resilience4j` 的概念或类似库）
 *   **可观测性**：如何追踪一个请求在多个服务之间的完整调用链？（可以考虑 OpenTelemetry）
 *   **配置管理**：如何统一管理不同服务的配置？
-
-希望这篇文章能帮助你扎实地迈出使用 NestJS 构建微服务的第一步。

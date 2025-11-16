@@ -193,9 +193,7 @@ async getUserById(@Payload() data: { userId: number }) {
 
 - **NestJS 实现**：通过 `@nestjs/microservices` 包，使用 `ClientProxy` 作为生产者，`@EventPattern` / `@MessagePattern` 装饰器作为消费者，可以非常优雅地构建基于消息队列的应用。
 
-- 模式选择
-
-  ：
+- 模式选择：
 
   - **`@EventPattern` + `emit()`**：用于事件通知，不需要响应。
-  - **`@MessagePattern` + `send()`**：用于远程调用，需要响应。
+- **`@MessagePattern` + `send()`**：用于远程调用，需要响应。
