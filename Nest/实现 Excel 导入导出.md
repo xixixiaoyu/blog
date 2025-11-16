@@ -163,7 +163,7 @@ main();
 
 				const workbook = new Workbook();
 
-				const loadedWorkbook = await workbook.xlsx.load(file);
+				const loadedWorkbook = await workbook.xlsx.load(await file.arrayBuffer());
 
 				loadedWorkbook.eachSheet((sheet, index1) => {
 					console.log('工作表' + index1);
@@ -180,7 +180,7 @@ main();
 
 启动静态服务器：
 
-```html
+```bash
 npx http-server .
 ```
 
@@ -228,11 +228,10 @@ npx http-server .
 
 				worksheet.addRows(data);
 
-				// 将工作簿写入 ArrayBuffer 并下载
-				const buffer = new ArrayBuffer(10 * 1024 * 1024); // 分配足够大的内存空间
-				const res = await workbook.xlsx.writeBuffer(buffer);
+				// 将工作簿写入内存并下载
+				const res = await workbook.xlsx.writeBuffer();
 
-				download(res.buffer);
+				download(res);
 			}
 
 			function download(arrayBuffer) {
@@ -247,18 +246,12 @@ npx http-server .
 
 				// 插入链接到页面并触发点击下载
 				document.body.appendChild(link);
-
 				link.click();
-				// 下载完成后移除链接
-				link.addEventListener('click', () => {
-					link.remove();
-				});
+				link.remove();
+				URL.revokeObjectURL(url);
 			}
 
-			main();
-
-			// 在页面加载完毕后执行
-			window.onload = generateExcel;
+				main();
 		</script>
 	</body>
 </html>
@@ -271,4 +264,3 @@ npx http-server .
 ![](https://cdn.nlark.com/yuque/0/2024/png/21596389/1710682156292-f778bd11-e858-482a-b1ab-257031e1f510.png)
 
 ![](https://cdn.nlark.com/yuque/0/2024/png/21596389/1710682141976-58d0804d-37d7-4e2b-a304-7f7f1410bc8f.png)
-
