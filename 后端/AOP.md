@@ -10,7 +10,10 @@
 
 这时候，**AOP (Aspect-Oriented Programming，面向切面编程) **闪亮登场。
 
+
+
 ## 什么是 AOP？
+
 AOP 就是一种编程思想，它允许你把那些“横跨”多个模块的通用功能（我们叫它“横切关注点”，Cross-Cutting Concerns）给拎出来，单独放到一个地方去管理。
 
 我们平常的后端服务很多都是基于 MVC 架构：
