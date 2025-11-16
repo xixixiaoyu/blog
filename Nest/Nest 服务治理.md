@@ -78,11 +78,10 @@ Nacos 提供了 Node.js 的 SDK，可以很方便地在 NestJS 中集成。我�
 ```ts
 // app.module.ts
 import { Module } from '@nestjs/common'
-import { ConfigModule, ConfigService } from '@nestjs/config'
-import { NacosConfigClient } from 'nacos-config' // 引入 nacos 客户端
+import { NacosConfigClient } from 'nacos' // 引入 nacos 客户端
 
 // 为什么用异步工厂函数？因为连接 Nacos 是一个异步操作，
-// 我们需要等待连接成功并获取到配置后，才能创建 ConfigService。
+// 我们需要等待连接成功并获取到配置后，才能提供配置对象。
 export const nacosConfigFactory = async () => {
   const nacosClient = new NacosConfigClient({
     serverAddr: 'localhost:8848',
@@ -95,18 +94,18 @@ export const nacosConfigFactory = async () => {
 }
 
 @Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      load: [nacosConfigFactory], // 使用异步加载器
-    }),
+  providers: [
+    {
+      provide: 'NACOS_CONFIG',
+      useFactory: nacosConfigFactory,
+    },
   ],
-  // ... other modules
+  exports: ['NACOS_CONFIG'],
 })
 export class AppModule {}
 ```
 
-现在，你可以在任何服务中通过 `ConfigService` 注入并使用这个从 Nacos 获取的配置。
+现在，你可以在任何服务中通过注入 `NACOS_CONFIG` 来使用这个从 Nacos 获取的配置。
 
 当你在 Nacos 控制台修改 `my-app-config.json` 的内容时，你的 NestJS 应用甚至可以做到**无感知更新**（需要配合监听机制）。
 

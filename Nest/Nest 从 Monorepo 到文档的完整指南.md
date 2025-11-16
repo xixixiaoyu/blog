@@ -56,7 +56,6 @@ my-org/
 ├── libs/             # 存放共享库的目录，初始为空
 ├── tools/            # 存放自定义工具和脚本
 ├── nx.json           # Nx 的核心配置文件
-├── project.json      # 项目级别的配置（每个 app/lib 都有一个）
 └── package.json
 ```
 
@@ -130,7 +129,7 @@ Nx 会分析你的 Git 提交，结合它内部的依赖图，精确地计算出
 首先，在我们的 Nx 工作区中安装 Swagger 依赖：
 
 ```bash
-npm install @nestjs/swagger
+npm install @nestjs/swagger swagger-ui-express
 ```
 
 然后，修改 `apps/api/src/main.ts` 文件，启用 Swagger：
