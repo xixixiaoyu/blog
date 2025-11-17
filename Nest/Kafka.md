@@ -77,15 +77,18 @@ bootstrap()
 
 ```ts
 // app.service.ts
-import { Injectable } from '@nestjs/common'
+import { Injectable, Inject, OnModuleInit } from '@nestjs/common'
 import { ClientKafka } from '@nestjs/microservices'
-import { Inject } from '@nestjs/common'
 
 @Injectable()
-export class AppService {
+export class AppService implements OnModuleInit {
   // 通过构造函数注入 Kafka 客户端
   // 'KAFKA_SERVICE' 是我们在 AppModule 中提供的 token
   constructor(@Inject('KAFKA_SERVICE') private readonly client: ClientKafka) {}
+
+  async onModuleInit() {
+    await this.client.connect()
+  }
 
   // 模拟用户注册成功后，发送事件
   registerUser(userData: any) {
@@ -102,7 +105,7 @@ export class AppService {
 
 ```ts
 // app.controller.ts
-import { Controller } from '@nestjs/common'
+import { Controller, Post, Body } from '@nestjs/common'
 import { MessagePattern, Payload } from '@nestjs/microservices'
 import { AppService } from './app.service'
 
