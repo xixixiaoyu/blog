@@ -93,7 +93,7 @@ SQL (Structured Query Language) 是用于操作关系型数据库的标准化语
 **创建数据库**：
 
 ```sql
-CREATE DATABASE `hello-mysql` CHARSET=utf8mb4;
+CREATE DATABASE `hello-mysql` DEFAULT CHARACTER SET utf8mb4;
 ```
 
 **创建表**：
@@ -108,7 +108,7 @@ CREATE TABLE `student` (
   `age` INT NOT NULL COMMENT '年龄',
   `class` VARCHAR(50) NOT NULL COMMENT '班级名',
   `score` INT NOT NULL COMMENT '分数'
-) CHARSET=utf8mb4;
+) DEFAULT CHARSET=utf8mb4;
 ```
 
 *   `PRIMARY KEY`：**主键**，唯一标识表中的每一行，值不能重复且不能为空。
