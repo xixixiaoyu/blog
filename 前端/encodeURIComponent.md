@@ -80,8 +80,6 @@ console.log(encodeURIComponent(url))
 
 
 
-
-
 ### 实际应用与解码
 
 **1. 构建查询字符串**：最常见用法
