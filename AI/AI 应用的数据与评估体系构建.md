@@ -63,9 +63,9 @@
 - **召回率**：`TP / (TP + FN)`。所有真正的正样本中，有多少被成功预测出来。衡量“查全率”。
 - **F1-Score**：`2 * (Precision * Recall) / (Precision + Recall)`。精确率和召回率的调和平均数，是二者的综合考量。
 
-> **TP (True Positive)***: 预测为正，实际为正。*
-> **FP (False Positive)***: 预测为正，实际为负。*
-> **FN (False Negative)***: 预测为负，实际为正。*
+> TP (True Positive): 预测为正，实际为正。
+> FP (False Positive): 预测为正，实际为负。
+> FN (False Negative): 预测为负，实际为正。
 
 #### 场景二：无标准答案的评估
 
@@ -168,9 +168,7 @@ function hasDisclaimer(response) {
 
 - **流程**：从线上日志中抽样，将模型输出和对应的用户问题推送到评估平台。
 
-- 评估维度
-
-  ：设计清晰的评估选项，如：
+- 评估维度：设计清晰的评估选项，如：
 
   - `准确` / `不准确`
   - `相关` / `不相关`
@@ -271,6 +269,5 @@ onTaskReviewed(task, reviewResult) {
 3. **对齐业务目标**：选择一个你最关心的业务指标（如任务完成率），并思考如何通过 A/B 测试将其与模型迭代关联起来。
 
 记住，评估不是开发的终点，而是迭代的起点。
-
 
 
