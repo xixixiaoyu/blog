@@ -1,5 +1,54 @@
-# 监控与追踪
 
-- Prometheus：[./Prometheus.md](./Prometheus.md)
-- OpenTelemetry：[./OpenTelemetry.md](./OpenTelemetry.md)
+# AI 大模型提示词
 
+## 任务
+
+你是一位经验丰富的 Go 开发者和站点可靠性工程师（SRE）。请撰写一篇关于“Go 应用的可观测性：监控与追踪”的概述性技术文章。
+
+## 文章目标
+
+本文旨在为 Go 开发者介绍现代云原生应用可观测性（Observability）的核心理念，并概述在 Go 生态中实现监控（Monitoring）和分布式追踪（Distributed Tracing）的主流技术栈。文章将作为本章节的总览，引导读者深入学习 Prometheus 和 OpenTelemetry。
+
+## 核心内容
+
+### 1. 为什么需要可观测性？
+
+- **从监控到可观测性**：解释传统监控（Monitoring）与现代可观测性（Observability）的区别。监控是“我们知道系统可能会出什么问题”，而可观测性是“我们能通过外部输出推断系统内部状态，即使是未知问题”。
+- **可观测性的三大支柱**：
+    - **Metrics（指标）**：可聚合的、数值化的数据，用于衡量系统在一段时间内的行为（如 QPS、CPU 使用率）。
+    - **Tracing（追踪）**：记录单个请求在分布式系统中的完整生命周期和路径，用于诊断延迟和瓶颈。
+    - **Logging（日志）**：离散的、带有时间戳的事件记录，用于描述某个特定时间点发生的具体事件。
+- **在 Go 微服务中的重要性**：强调在分布式架构下，单一的日志或指标已不足以定位问题，必须结合三者才能获得完整的系统视图。
+
+### 2. Go 中的指标监控：Prometheus
+
+- **Prometheus 简介**：介绍 Prometheus 是一个开源的监控和告警工具包，已成为云原生监控领域的事实标准。
+- **核心特性**：
+    - **拉取模型（Pull Model）**：解释 Prometheus Server 定期从应用暴露的 `/metrics` 端点拉取指标数据的模式。
+    - **多维度数据模型**：说明其强大的标签（Labels）系统如何支持灵活的数据查询和聚合。
+    - **PromQL**：简要提及其功能强大的查询语言。
+- **Go 生态集成**：介绍官方的 `prometheus/client_golang` 库，开发者可以轻松地在 Go 应用中自定义和暴露指标。
+
+### 3. Go 中的分布式追踪：OpenTelemetry
+
+- **分布式追踪的价值**：通过一个典型的微服务调用链（A -> B -> C），说明分布式追踪如何帮助我们可视化请求耗时、发现性能瓶颈和错误根源。
+- **OpenTelemetry (OTel) 简介**：介绍 OpenTelemetry 是一个由 CNCF 托管的、统一的、厂商中立的可观测性框架，它整合了 OpenTracing 和 OpenCensus。
+- **OTel 核心组件**：
+    - **API**：定义了如何生成和关联 `Trace` 和 `Span` 的标准接口。
+    - **SDK**：API 的官方实现，负责处理数据生成、处理和导出。
+    - **Collector**：一个独立的服务，用于接收、处理和转发遥测数据到各种后端（如 Jaeger, Zipkin, Prometheus 等）。
+- **Go 生态集成**：介绍 `go.opentelemetry.io/otel` 相关的库，以及它如何与 Go 的 `context` 包深度集成，实现追踪上下文的无缝传递。
+
+### 4. 结构化日志
+
+- 简要说明为什么在可观测性体系中，非结构化的 `fmt.Println` 或 `log.Println` 是不够的。
+- 强调结构化日志（如 JSON 格式）的重要性，因为它易于机器解析、查询和分析。
+- 推荐使用 Go 1.21+ 内置的 `log/slog` 包或社区流行的 `zerolog`、`zap` 等库。
+
+## 文章结构
+
+- 在文章结尾明确指出，本章后续内容将分别深入探讨如何使用 Prometheus 实现指标监控，以及如何利用 OpenTelemetry 构建分布式追踪系统。
+
+## 代码要求
+
+- 无需提供完整的代码实现，但可以在解释概念时，使用简短的伪代码或代码片段作为示例（例如，一个 Prometheus 指标的定义，一个 OTel Span 的创建）。
