@@ -32,9 +32,233 @@ OSS 存储和检索非结构化数据和元数据对象（如文档、图片、�
     3. 前端使用这个预签名 URL 直接将文件上传到 OSS。
 - **优点**：此方案避免了服务器中转的流量消耗，同时也通过临时凭证机制保护了永久密钥的安全。
 
-![画板](https://cdn.nlark.com/yuque/0/2024/jpeg/21596389/1713071856598-13a4590b-acc8-437c-9519-71bce0ee406a.jpeg)
+![临时凭证直传](https://cdn.nlark.com/yuque/0/2025/jpeg/21596389/1765514369849-ffa6e370-0205-4c28-a458-d70bc804a5ea.jpeg?x-oss-process=image%2Fformat%2Cwebp)
+
+## 阿里云 OSS 服务购买上传
+
+我们买个[阿里云的 OSS 服务](https://link.juejin.cn/?target=https%3A%2F%2Fwww.aliyun.com%2Fproduct%2Foss)：
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713062461334-721cf042-75b8-49ae-85f8-0c6c1e2adf3c.png?x-oss-process=image%2Fformat%2Cwebp)
+
+买了 40G 的 OSS 国内通用资源包，花了 5 块钱。
+
+
+
+然后我们创建个 Bucket（桶）：
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713062804198-4865278d-f440-4c6a-8f14-e5c9836431e7.png?x-oss-process=image%2Fformat%2Cwebp)
+
+在北京创建了一个 Bucket，文件就会存储在那里的服务器上。
+
+可以设置为公共读，也可以设置为私有，需要身份验证才能访问。
+
+
+
+创建 Bucket 之后，我们就可以上传文件了：
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713063147392-f7e8c2d2-a5d2-4074-b217-21dd505a10b4.png?x-oss-process=image%2Fformat%2Cwebp)
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713063186426-ae845da0-ef93-405d-b2ab-ced5e206068a.png?x-oss-process=image%2Fformat%2Cwebp)
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713063212410-b943d441-9240-4b0c-9526-b684616a1879.png?x-oss-process=image%2Fformat%2Cwebp)
+
+上传完之后在文件列表就可以看到这个文件了：
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713063334166-88d74a94-e8fb-4349-b580-060cff2179e2.png?x-oss-process=image%2Fformat%2Cwebp)
+
+生产环境下我们不会直接用 OSS 的 URL 访问，而是会开启 CDN：
+
+- 当用户通过网站域名请求文件时，请求会被 CDN 服务接收。
+- CDN 会根据用户的地理位置，将请求重定向到最近的缓存服务器。
+- 如果这个服务器上已经缓存了请求的文件，那么文件将直接从该服务器提供给用户，从而减少了数据传输的延迟。
+- 如果缓存服务器上没有文件，它会从原始位置（即 OSS 服务）获取文件，并将其缓存以备后续请求使用。
+
+我们还可以通过代码上传：
+
+```js
+const OSS = require('ali-oss')
+
+const client = new OSS({
+    region: 'oss-cn-beijing',
+    bucket: 'yun-667',
+    accessKeyId: '',
+    accessKeySecret: '',
+});
+
+async function put () {
+  try {
+    const result = await client.put('yun.png', './avatar.png');
+    console.log(result);
+  } catch (e) {
+    console.log(e);
+  }
+}
+
+put();
+```
+
+new OSS 的时候有几个选项需要获取。
+
+region 在概览可以看到：![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713065588773-6eb11c42-7367-4244-bb91-e92e28ac80fd.png?x-oss-process=image%2Fformat%2Cwebp)
+
+AccessKeyId 和 AccessKeySecret，建议使用 RAM（Resource Access Management）子用户的方式生成。
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713065711517-39e680ae-b5ea-4f24-8910-c351bade5ee7.png?x-oss-process=image%2Fformat%2Cwebp)
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713065783833-b596e753-b2dc-4937-b7b3-bd92fdf1fb1e.png?x-oss-process=image%2Fformat%2Cwebp)
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713065841257-af42ff96-61fb-451c-8e0c-1b62e9c2d707.png?x-oss-process=image%2Fformat%2Cwebp)
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713065903226-4a120289-83f4-4f22-8f24-e2e275237e31.png?x-oss-process=image%2Fformat%2Cwebp)
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713070812932-6c081c45-2b4f-443b-934b-ca941f028f02.png?x-oss-process=image%2Fformat%2Cwebp)
+
+创建完成后，就可以拿到 accesKeyId 和 accessKeySecret。
+
+
+
+我们还需要设置访问控制：
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713070361977-1b3fe2ed-678e-4f7f-86e9-ff4026a1581a.png?x-oss-process=image%2Fformat%2Cwebp)
+
+新增一个授权：
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713070386913-6414beb8-f01f-4385-afa3-722b0b2dc099.png?x-oss-process=image%2Fformat%2Cwebp)
+
+把 OSS 的管理和读取权限给这个子用户：
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713070469064-d8432fee-a61e-45c7-b5c2-e5974ccc06ef.png?x-oss-process=image%2Fformat%2Cwebp)
+
+然后 node 运行下我们刚开始的代码：
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713070770234-165c0bec-04eb-4040-a954-89acfd46f9a3.png?x-oss-process=image%2Fformat%2Cwebp)
+
+这时候就上传成功了。
+
+[阿里云的大文件分片上传](https://link.juejin.cn/?target=https%3A%2F%2Fhelp.aliyun.com%2Fzh%2Foss%2Fuser-guide%2Fmultipart-upload)直接看文档就行了。
+
+下载图片也很简单：
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713108985264-61f435ee-500b-47b7-a80f-d5299492042a.png?x-oss-process=image%2Fformat%2Cwebp)
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713108968672-8750cc85-762e-4dd4-b51d-0d8ffd6af311.png?x-oss-process=image%2Fformat%2Cwebp)
+
+直接上传 OSS 可以节省应用服务器的流量，但增加了 accessKey 泄露的风险，[阿里云的文档](https://link.juejin.cn/?target=https%3A%2F%2Fhelp.aliyun.com%2Fzh%2Foss%2Fuser-guide%2Fauthorized-third-party-upload)里也提到了这个问题：
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713072001471-6a9e6073-1d55-49e5-a5ba-fa1a491cd123.png?x-oss-process=image%2Fformat%2Cwebp)
+
+解决方案就是生成一个临时的签名来用：
+
+```js
+const OSS = require('ali-oss');
+
+async function main() {
+	const config = {
+		region: '',
+		bucket: '',
+		accessKeyId: '',
+		accessKeySecret: '',
+	};
+
+	const client = new OSS(config);
+
+	const date = new Date();
+
+	date.setDate(date.getDate() + 1);
+
+	const res = client.calculatePostSignature({
+		expiration: date.toISOString(),
+		conditions: [
+			['content-length-range', 0, 1048576000], //设置上传文件的大小限制。
+		],
+	});
+
+	console.log(res);
+
+	const location = await client.getBucketLocation();
+
+	const host = `http://${config.bucket}.${location.location}.aliyuncs.com`;
+
+	console.log(host);
+}
+
+main();
+```
+
+获取到了临时凭证的信息：
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713072149956-d5c84d57-b613-4164-91e5-975de54f089a.png?x-oss-process=image%2Fformat%2Cwebp)
+
+这样就能在网页里用这些来上传文件到 OSS 了：
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<script src="https://unpkg.com/axios@1.6.5/dist/axios.min.js"></script>
+	</head>
+	<body>
+		<input id="fileInput" type="file" />
+
+		<script>
+			const fileInput = document.getElementById('fileInput');
+
+			async function getOSSInfo() {
+				// 下面的信息可以通过请求服务器获取
+				return {
+					OSSAccessKeyId: '',
+					Signature: '',
+					policy: '',
+					host: '',
+				};
+			}
+
+			fileInput.onchange = async () => {
+				const file = fileInput.files[0];
+
+				const ossInfo = await getOSSInfo();
+
+				const formdata = new FormData();
+
+				formdata.append('key', file.name);
+				formdata.append('OSSAccessKeyId', ossInfo.OSSAccessKeyId);
+				formdata.append('policy', ossInfo.policy);
+				formdata.append('signature', ossInfo.Signature);
+				formdata.append('success_action_status', '200');
+				formdata.append('file', file);
+
+				const res = await axios.post(ossInfo.host, formdata);
+				if (res.status === 200) {
+					const img = document.createElement('img');
+					img.src = ossInfo.host + '/' + file.name;
+					document.body.append(img);
+
+					alert('上传成功');
+				}
+			};
+		</script>
+	</body>
+</html>
+```
+
+我们需要在控制台开启下跨域：
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713072658449-0d365fb0-6007-440a-818c-f51b3986d738.png?x-oss-process=image%2Fformat%2Cwebp)
+
+使用 `npx http-server . `跑个静态服务器上传：
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713072690625-4fd268c2-90ae-4fac-a695-f70d929a9193.png?x-oss-process=image%2Fformat%2Cwebp)
+
+控制台文件列表也可以看到这个文件：
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713072932233-9386fc40-4fed-4cb7-bc75-0f8bc4623165.png?x-oss-process=image%2Fformat%2Cwebp)
+
+这就是完美的 OSS 方案。
+
+
 
 ## 使用 Minio 自建 OSS 服务
+
 Minio 是一个高性能的、与亚马逊 S3 兼容的开源对象存储服务。我们可以使用 Docker 非常方便地在本地或服务器上部署它。
 
 ### 启动 Docker 的 Minio 容器
@@ -70,7 +294,7 @@ Minio 是一个高性能的、与亚马逊 S3 兼容的开源对象存储服务�
 
 ![](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713090941649-502f9eb9-02e0-4ee9-9795-7b320494eb55.png)
 
-为了让外部能直接访问桶里的文件，需要设置桶的访问策略为公开（Public）。
+允许存储桶中的文件被公开访问：
 
 ![](https://cdn.nlark.com/yuque/0/2024/png/21596389/1713091547608-8c6adbb0-5f16-4f6d-82de-bdfc6c814136.png)
 
