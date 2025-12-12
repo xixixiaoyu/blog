@@ -81,7 +81,7 @@ Minio 是一个高性能的、与亚马逊 S3 兼容的开源对象存储服务�
 此外，若要从浏览器前端直接向 Minio 发起 `PUT` 上传，请在桶的 CORS 配置中允许来源 `http://localhost:3000`，并开放 `PUT`、`GET` 方法以及必要的请求头（如 `Content-Type`）。否则浏览器的跨域预检会失败，导致无法上传。
 
 ## 实战：前端直传文件到 Minio
-接下来，我们将使用 NestJS作为后端来生成预签名 URL，并创建一个简单的前端页面来实现文件直传到 Minio。
+接下来，我们将使用 NestJS 作为后端来生成预签名 URL，并创建一个简单的前端页面来实现文件直传到 Minio。
 
 ### 后端实现 (NestJS)
 
@@ -138,7 +138,19 @@ export class MinioModule {}
 
 ![](https://cdn.nlark.com/yuque/0/2024/png/21596389/1715252809952-1c969d8c-cd45-4b2a-a890-d103ddcfb6d5.png)
 
-最后，在 `AppModule` (`src/app.module.ts`) 中导入 `MinioModule`。
+最后，在 `AppModule` (`src/app.module.ts`) 中导入 `MinioModule`：
+
+```typescript
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { MinioModule } from './minio/minio.module';
+
+@Module({
+  imports: [MinioModule],
+  controllers: [AppController],
+})
+export class AppModule {}
+```
 
 #### 3. 实现生成预签名 URL 的接口
 在 `AppController` (`src/app.controller.ts`) 中，注入 `Minio.Client` 并创建一个接口，用于根据文件名生成一个预签名的上传 URL。
