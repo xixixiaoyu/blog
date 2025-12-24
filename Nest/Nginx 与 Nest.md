@@ -1,368 +1,268 @@
-## Nginx 是什么，为什么要结合 Nest？
+Nginx 是一款高性能的 Web 服务器，它既能高效地托管静态资源（HTML、图片），又能作为反向代理服务器，为后端的动态服务（如 NestJS、Java、Go）提供网关支持。
 
-想象一下，Nginx 是一家大型公司的**前台总机**。它极其高效、专业，能以极低的资源消耗，同时处理成千上万个访客的请求。
+今天，我们将借助 Docker，通过实战掌握 Nginx 的核心用法。
 
-*   **核心职责**：接收所有外部请求，作为流量的统一入口。
-*   **擅长领域**：
-    *   **高并发连接处理**：基于事件驱动的异步架构，使其能用极少内存处理海量连接。
-    *   **静态资源服务**：如同分发公司宣传册，极快地提供图片、CSS、JavaScript 等静态文件。
-    *   **反向代理**：根据访客需求，将请求精准地转发给内部对应的业务部门（后端应用）。
-    *   **负载均衡**：当某个部门（应用实例）繁忙时，它能智能地将新请求转给其他空闲的部门，实现水平扩展。
-    *   **安全屏障**：作为第一道防线，可配置访问规则、速率限制，有效拦截恶意请求。
+## 一、 初识：在 Docker 中运行 Nginx
 
-Nginx 的本质是一个高性能的 **Web 服务器**和**反向代理服务器**。
+Docker 容器化技术让我们无需在本地安装复杂的环境，即可快速启动服务。
 
-你可能会问：为什么不让 NestJS 直接处理所有请求呢？
+### 1. 启动容器
+首先，确保你已安装 Docker Desktop。在搜索栏输入 `nginx`，点击 Run（或者使用命令行启动）。
 
-答案在于**关注点分离（Separation of Concerns）**。
+![](https://cdn.nlark.com/yuque/0/2024/png/21596389/1717086267380-37bbee21-e396-4f31-94a5-4bf2990c62c6.png)
 
-让一个精通核心业务的专家（NestJS）去同时承担前台接待、分发信件、安保等所有工作，不仅效率低下，而且无法让其专注于核心价值。
+配置端口映射：将宿主机的 `81` 端口映射到容器内部的 `80` 端口。
 
-Nginx 在前，NestJS 在后，形成黄金架构：`用户请求 -> Nginx (前台) -> NestJS (业务部门)`
+![](https://cdn.nlark.com/yuque/0/2024/png/21596389/1717086317581-eea41f3e-7480-48ed-84bc-75bde7fde637.png)
 
-这种结合带来了巨大的好处：
+启动后，浏览器访问 [http://localhost:81](http://localhost:81)，你将看到 Nginx 经典的欢迎页面：
 
-1.  **性能与稳定性**：Nginx 处理静态文件和网络 I/O 的性能远超 Node.js。让 Nginx 承担它擅长的工作，可以解放 NestJS，使其专注于 CPU 密集型的业务逻辑，从而提升整个系统的吞吐量和稳定性。
-2.  **安全与隔离**：Nginx 作为统一网关，可以隐藏后端服务的真实 IP 和端口。你只需暴露 Nginx 的 `80` (HTTP) 或 `443` (HTTPS) 端口，而 NestJS 应用则可运行在不对外暴露的内网端口（如 `3000`），极大提升了安全性。
-3.  **简化 SSL/TLS 配置**：HTTPS 的加解密过程是 CPU 密集型操作。我们可以让 Nginx 统一处理 SSL/TLS 终止，然后通过普通的 HTTP 将请求转发给内部的 NestJS 应用。这简化了 NestJS 应用的配置，使其无需关心证书细节。
-4.  **易于水平扩展**：当用户量增长，单个 NestJS 实例无法满足需求时，你可以轻松启动多个实例。Nginx 的负载均衡功能可以将请求均匀地分发到这些实例上，实现无缝扩展。
-5.  **统一的策略管理**：你可以在 Nginx 层实现统一的日志记录、IP 黑白名单、CORS 策略、请求限流等，为所有后端服务提供一致的保护。
+![](https://cdn.nlark.com/yuque/0/2024/png/21596389/1717084576514-5984b52f-016e-496e-adc7-0caca8db917d.png)
+
+### 2. 探索容器内部
+Nginx 默认的静态文件存放于容器内的 `/usr/share/nginx/html/` 目录。
+
+![](https://cdn.nlark.com/yuque/0/2024/png/21596389/1717084736410-528a761a-97a2-4baa-9f7a-cf6ec5f26fc6.png)
+
+### 3. 修改容器内容 (docker cp)
+我们可以使用 `docker cp` 命令在宿主机和容器之间复制文件，从而修改页面内容。
+
+**步骤演示：**
+
+1.  **复制出来**：把容器内的 html 目录复制到宿主机。
+    ```bash
+    # 语法：docker cp <容器ID/名称>:<容器内路径> <宿主机路径>
+    docker cp nginx-test:/usr/share/nginx/html ~/nginx-html
+    ```
+    ![](https://cdn.nlark.com/yuque/0/2024/png/21596389/1717086374562-f150fd91-f512-47ea-b38e-2bd021597eb0.png)
+
+2.  **修改内容**：在宿主机新建 `test1.html` 和 `test2.html`。
+    ```bash
+    cd ~/nginx-html
+    echo 'hello test1' > test1.html
+    echo 'hello test2' > test2.html
+    ```
+
+3.  **复制回去**：将修改后的目录覆盖回容器。
+    ```bash
+    docker cp ~/nginx-html nginx-test:/usr/share/nginx/html
+    ```
+    ![](https://cdn.nlark.com/yuque/0/2024/png/21596389/1717086763051-bfde005f-c743-4364-b8d4-e9d05a3c45c5.png)
+
+现在访问 `http://localhost:81/test1.html`，即可看到新页面。这证明只要文件位于 `/usr/share/nginx/html` 下，Nginx 就能默认访问到。
 
 ---
 
-## 第二章：Nginx 核心用法与配置详解
+## 二、 核心：Nginx 配置详解
 
-本章将带你快速掌握 Nginx 的核心配置，为后续实战打下坚实基础。
+要驾驭 Nginx，必须读懂它的配置文件。
 
-### 2.1 在 Docker 中快速上手 Nginx
+### 1. 配置文件结构
+主配置文件位于 `/etc/nginx/nginx.conf`。它通常包含全局设置，并通过 `include` 指令引入子配置。
 
-Docker 是部署 Nginx 的最佳方式之一。
+![](https://cdn.nlark.com/yuque/0/2023/png/21596389/1688307846529-e7669414-74ea-48e9-b3da-a3da9f18e88a.png)
 
-1.  **启动 Nginx 容器**：
-    你可以通过 Docker Desktop 的图形化界面或使用命令行来启动一个 Nginx 容器。
+我们重点关注 `/etc/nginx/conf.d/*.conf`，这里通常定义了具体的 `server`（虚拟主机）和路由规则。
 
-    ```bash
-    # 启动一个名为 my-nginx 的容器
-    # 将宿主机的 8080 端口映射到容器的 80 端口
-    docker run --name my-nginx -p 8080:80 -d nginx
-    ```
-    此时，访问 `http://localhost:8080` 即可看到 Nginx 的欢迎页面。
+### 2. Location 路由匹配规则
+`location` 指令决定了 Nginx 如何处理不同的 URL 请求。
 
-2.  **文件拷贝**：
-    `docker cp` 命令是宿主机与容器之间传递文件的桥梁。
+**匹配优先级（从高到低）：**
+1.  `location = /uri`：**精确匹配**。
+2.  `location ^~ /uri`：**前缀匹配**（高优先级），一旦匹配成功，不再检查正则。
+3.  `location ~ /pattern`：**正则匹配**（区分大小写）。
+4.  `location ~* /pattern`：**正则匹配**（忽略大小写）。
+5.  `location /uri`：**普通前缀匹配**。
 
-    ```bash
-    # 将容器内的默认配置文件拷贝到宿主机当前目录
-    docker cp my-nginx:/etc/nginx/conf.d/default.conf .
-    
-    # 将宿主机修改后的配置文件拷贝回容器
-    docker cp default.conf my-nginx:/etc/nginx/conf.d/
-    ```
-
-3.  **重载配置**：
-    修改配置后，无需重启容器，只需执行重载命令即可让新配置生效。
-
-    ```bash
-    docker exec my-nginx nginx -s reload
-    ```
-
-### 2.2 理解 Nginx 配置文件结构
-
-Nginx 的配置系统是模块化且分层的。
-
-*   **/etc/nginx/nginx.conf**：这是主配置文件，定义了 Nginx 的全局行为，如工作进程数、日志路径等。它通常会通过 `include` 指令引入其他配置文件。
-*   **/etc/nginx/conf.d/**：这是存放虚拟主机配置（即 `server` 块）的默认目录。主配置文件会通过 `include /etc/nginx/conf.d/*.conf;` 加载此目录下的所有 `.conf` 文件。
-
-一个典型的 `server` 块结构如下：
-
+**示例：**
 ```nginx
 server {
-  listen 80; # 监听的端口
-  server_name example.com; # 对应的域名
+  listen 80;
+  
+  # 1. 精确匹配：只有访问 / 时触发
+  location = / {
+    root /var/www/html;
+    index index.html;
+  }
 
-  # 路由规则和指令
+  # 2. 正则匹配：访问 .png 结尾的图片
+  location ~ \.png$ {
+    root /var/www/images;
+  }
+
+  # 3. 通用匹配：兜底规则
   location / {
-    ...
+    root /var/www/html;
   }
 }
 ```
 
-### 2.3 核心指令详解
+### 3. Root 与 Alias 的区别（易错点）
+这两个指令都用于指定文件路径，但拼接逻辑完全不同。
 
-#### `location`：定义路由匹配规则
-
-`location` 指令是 Nginx 配置的灵魂，它根据请求的 URI 来决定如何处理请求。
-
-**匹配语法与优先级**：
-
-1.  `=`：精确匹配。优先级最高。
-    `location = /about` 只匹配 `/about` 这一个路径。
-2.  `^~`：前缀匹配。一旦匹配成功，则停止搜索其他正则匹配。
-    `location ^~ /images/` 匹配任何以 `/images/` 开头的请求。
-3.  `~` 和 `~*`：正则表达式匹配。`~` 区分大小写，`~*` 不区分。
-    `location ~* \.(jpg|jpeg|png)$` 匹配所有以 jpg, jpeg, png 结尾的图片请求。
-4.  `/`：通用前缀匹配。如果以上规则都未匹配，则使用最长的前缀匹配。优先级最低。
-    `location /` 会匹配所有请求。
-
-#### `root` 与 `alias`：定义文件路径
-
-这两个指令都用于指定静态资源的文件路径，但工作方式有本质区别。
-
-*   **`root`**：将 `location` 匹配的 URI **追加**到 `root` 指定的路径后。
+*   **root (追加)**：
     ```nginx
-    location /static/ {
-      root /var/www/data;
+    location /images/ {
+      root /data;
     }
-    # 请求 /static/image.png -> 查找文件 /var/www/data/static/image.png
     ```
+    请求 `/images/cat.png` -> 寻找 `/data/images/cat.png` (路径 = root + uri)。
 
-*   **`alias`**：用 `alias` 指定的路径 **替换** `location` 匹配的 URI 部分。
+*   **alias (替换)**：
     ```nginx
-    location /static/ {
-      alias /var/www/data/; # 注意末尾的 /
+    location /images/ {
+      alias /data/pictures/;
     }
-    # 请求 /static/image.png -> 查找文件 /var/www/data/image.png
     ```
-    **最佳实践**：当 `location` 路径与 `alias` 路径末尾都带 `/` 或都不带 `/` 时，行为最直观。通常推荐 `alias` 用于将一个 URL 路径映射到另一个完全不同的文件系统路径。
+    请求 `/images/cat.png` -> 寻找 `/data/pictures/cat.png` (路径 = alias + uri 去除 location 部分)。
 
-#### `proxy_pass`：定义反向代理目标
-
-这是实现反向代理的核心指令，它告诉 Nginx 将请求转发到哪里。
-
-```nginx
-location /api/ {
-  proxy_pass http://localhost:3000;
-}
-```
-
-#### `proxy_set_header`：传递真实的客户端信息
-
-当 Nginx 代理请求时，后端应用（NestJS）默认只能看到来自 Nginx 的请求信息。为了让 NestJS 获取到原始客户端的信息，必须设置以下请求头：
-
-```nginx
-proxy_set_header Host $host; # 传递原始请求的域名
-proxy_set_header X-Real-IP $remote_addr; # 传递客户端的真实 IP
-proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; # 记录完整的代理链 IP
-proxy_set_header X-Forwarded-Proto $scheme; # 传递原始请求的协议 (http/https)
-```
+**总结**：如果你只是想指定一个基础目录，用 `root`；如果你想把 URL 映射到一个完全不同的目录结构，用 `alias`。
 
 ---
 
-## 第三章：实战：Nginx 作为 NestJS 的反向代理
+## 三、 进阶：反向代理与 NestJS
 
-让我们通过一个完整的案例，将理论付诸实践。
+Nginx 处于请求的最前端，被称为“网关”。它可以将请求转发给后端的应用服务器（如 NestJS）。
 
-### 3.1 场景设定
+### 1. 架构说明
+*   **正向代理**：代理客户端（如 VPN），服务器不知道真实客户端是谁。
+*   **反向代理**：代理服务器（如 Nginx），客户端不知道真实服务器是谁。
 
-*   你的 NestJS 应用正在服务器的 `3000` 端口上运行。
-*   你希望用户通过访问 `http://yourdomain.com` 来访问你的应用。
-*   你有一些静态文件（如用户上传的图片）存放在 `/var/www/static` 目录，希望由 Nginx 直接提供服务。
-
-### 3.2 NestJS 应用准备
-
-你的 NestJS 应用 `main.ts` 文件无需特殊改动，只需确保它监听在一个固定的内网端口即可。
-
-```typescript
-// src/main.ts
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  // 启动应用，监听在 3000 端口
-  await app.listen(3000);
-  console.log('Application is running on: http://localhost:3000');
-}
-bootstrap();
+### 2. 搭建 NestJS 服务
+创建一个简单的 NestJS 应用并启动：
+```bash
+npx nest new nest-app -p npm
+npm run start:dev
 ```
+确保访问 `http://localhost:3000` 能看到 "Hello World"。
 
-### 3.3 编写 Nginx 配置
+### 3. 配置 Nginx 反向代理
+我们希望访问 Nginx 的 `81` 端口时，自动转发给 NestJS 的 `3000` 端口。
 
-在 `/etc/nginx/conf.d/` 目录下创建一个新的配置文件，例如 `yourdomain.com.conf`。
+修改 Nginx 配置（`default.conf`）：
 
 ```nginx
-# /etc/nginx/conf.d/yourdomain.com.conf
-
 server {
   listen 80;
-  server_name yourdomain.com www.yourdomain.com;
+  server_name localhost;
 
-  # 1. 静态资源服务
-  # 当访问 http://yourdomain.com/static/... 时，由 Nginx 直接处理
-  location /static/ {
-    alias /var/www/static/;
-    expires 30d; # 添加缓存头，提升客户端性能
-    add_header Cache-Control "public";
-  }
-
-  # 2. API 及其他动态请求的反向代理
-  # 所有其他请求都转发给 NestJS 应用
-  location / {
-    # 后端 NestJS 服务的地址
-    proxy_pass http://localhost:3000;
-
-    # 确保后端能获取真实的客户端信息
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-
-    # 处理 WebSocket 连接
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
+  location ^~ /api {
+    # 注意：在 Docker 中，不能直接写 localhost，需使用宿主机 IP
+    proxy_pass http://192.168.1.6:3000;
   }
 }
 ```
 
-**配置解释**：
+将配置复制回容器并重载：
+```bash
+docker cp default.conf nginx1:/etc/nginx/conf.d/default.conf
+docker exec nginx1 nginx -s reload
+```
 
-*   `location /static/ { ... }`：处理所有以 `/static/` 开头的请求，Nginx 会直接从服务器的 `/var/www/static/` 目录返回文件，不会打扰 NestJS。
-*   `location / { ... }`：处理所有其他请求。`proxy_pass` 指令是核心，它将请求转发给运行在 `3000` 端口的 NestJS 应用。
-*   `proxy_set_header`：这些指令至关重要，确保了 NestJS 应用能够正确识别客户端的真实 IP、域名和协议，对于日志记录、安全策略和生成正确的 URL 至关重要。`Upgrade` 和 `Connection` 头则是处理 WebSocket 连接所必需的。
-
-### 3.4 加载配置并测试
-
-1.  **测试配置文件语法**：
-    ```bash
-    sudo nginx -t
-    ```
-    如果看到 `syntax is ok` 和 `test is successful`，则表示配置无误。
-
-2.  **重新加载配置**：
-    ```bash
-    sudo systemctl reload nginx
-    # 或者在 Docker 中
-    # docker exec <your-nginx-container> nginx -s reload
-    ```
-
-现在，当你访问 `http://yourdomain.com` 时，请求将由 Nginx 转发给 NestJS 处理。当你访问 `http://yourdomain.com/static/some-image.jpg` 时，Nginx 会直接返回图片。
+此时，访问 `http://localhost:81/api`，实际上就是访问了 NestJS。
 
 ---
 
-## 第四章：高级应用与运维
+## 四、 高级：负载均衡
 
-掌握了基础的反向代理后，我们可以利用 Nginx 实现更复杂的部署与运维策略。
+当一台服务器扛不住流量时，我们需要多台服务器分担，这就是负载均衡。
 
-### 4.1 负载均衡 (Load Balancing)
+### 1. 准备环境
+启动两个 NestJS 实例，分别监听 `3000` 和 `3001` 端口，并修改返回值以便区分（如 "Hello 111", "Hello 222"）。
 
-当单台 NestJS 应用无法承载所有流量时，负载均衡是实现水平扩展的关键。
+### 2. 配置 Upstream
+在 Nginx 中使用 `upstream` 定义服务器组。
 
-**实现方式**：使用 `upstream` 模块定义一个服务器组。
-
+**策略一：轮询（默认）与权重**
 ```nginx
-# 定义一个名为 "nest_backend" 的上游服务器组
-upstream nest_backend {
-  # 负载均衡策略
-  # ip_hash; # IP 哈希策略，确保同一客户端总是访问同一台服务器
-
-  server 127.0.0.1:3000; # 实例 1
-  server 127.0.0.1:3001; # 实例 2
-  server 127.0.0.1:3002 weight=2; # 实例 3，权重为 2，接收约两倍的流量
+upstream nest_server {
+  server 192.168.1.6:3000 weight=1;
+  server 192.168.1.6:3001 weight=2; # 权重越高，分配的请求越多
 }
 
 server {
   listen 80;
-  server_name yourdomain.com;
-
-  location / {
-    # 将请求转发到定义的服务器组
-    proxy_pass http://nest_backend;
-
-    # 其他 header 设置保持不变
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    # ...
+  location /api {
+    proxy_pass http://nest_server;
   }
 }
 ```
+![](https://cdn.nlark.com/yuque/0/2023/png/21596389/1688313380863-8bb8d58a-a821-4e49-aeff-4f400f85e0c8.png)
+*可以看到请求按 1:2 的比例分发。*
 
-**负载均衡策略**：
+**策略二：IP Hash**
+```nginx
+upstream nest_server {
+  ip_hash; # 保证同一个 IP 的用户总是访问同一台服务器
+  server 192.168.1.6:3000;
+  server 192.168.1.6:3001;
+}
+```
+这解决了 Session 丢失的问题，但在现代无状态架构（JWT）中，轮询更为常用。
 
-*   **轮询 (Round Robin)**：默认策略。请求按顺序逐一分配到每个服务器。
-*   **权重 (Weight)**：为服务器分配不同的权重，权重越高的服务器接收的请求比例越大。
-*   **IP 哈希 (IP Hash)**：根据客户端 IP 的哈希值来分配服务器。这可以确保来自同一客户端的请求始终被发送到同一台服务器，对于需要维持会话状态的应用非常有用（尽管推荐使用无状态设计）。
-*   **最少连接 (Least Connections)**：将请求分配给当前活动连接数最少的服务器，适合处理耗时较长的请求。
+---
 
-### 4.2 灰度发布 (Canary Release)
+## 五、 实战：灰度发布 (Gray Release)
 
-灰度发布（或称金丝雀发布）是一种低风险地发布新版本的策略，它允许你先将一小部分流量引导到新版本，验证其稳定性，然后逐步扩大流量比例。
+灰度发布允许我们将新版本只推送给一小部分用户（如 5%），验证无误后再全量发布。
 
-**实现思路**：通过检查请求中的特定标识（如 Cookie 或 Header），动态地将请求路由到新、旧版本的服务器组。
+### 1. 原理
+![流程图](https://cdn.nlark.com/yuque/0/2024/jpeg/21596389/1714442918633-cf847de7-de92-41c2-9839-1fb58f800eb5.jpeg)
+
+1.  用户携带特定 Cookie（如 `version=2.0`）。
+2.  Nginx 解析 Cookie。
+3.  根据 Cookie 将流量转发到不同的 Upstream（新版或旧版）。
+
+### 2. Nginx 配置实现
+我们需要定义两组服务器，并使用 `map` 或 `if` 指令进行分流。
 
 ```nginx
-# 上游服务器组
-upstream stable_server { # 旧版本/稳定版
-  server 127.0.0.1:3000;
-}
-upstream canary_server { # 新版本/灰度版
-  server 127.0.0.1:3001;
+# 1. 定义两组服务
+upstream version1.0_server {
+    server 192.168.0.100:3000; # 旧版
 }
 
-# 使用 map 指令动态选择上游
-# 检查 $http_cookie 中是否有名为 "version" 的 cookie
-map $http_cookie $group {
-  default stable_server; # 默认走稳定版
-  "~*version=canary" canary_server; # 如果 cookie 包含 "version=canary"，则走灰度版
+upstream version2.0_server {
+    server 192.168.0.100:3001; # 新版
 }
 
 server {
-  listen 80;
-  server_name yourdomain.com;
+    listen 80;
+    server_name localhost;
 
-  location / {
-    # proxy_pass 的目标是一个变量，由 map 指令动态决定
-    proxy_pass http://$group;
+    # 2. 动态设置变量 $group
+    set $group "version1.0_server"; # 默认走旧版
 
-    # 其他 header 设置
-    # ...
-  }
+    # 如果 Cookie 中包含 version=2.0，则走新版
+    if ($http_cookie ~* "version=2.0"){
+        set $group version2.0_server;
+    }
+
+    location ^~ /api {
+        # 去掉 URL 中的 /api 前缀
+        rewrite ^/api/(.*)$ /$1 break;
+        
+        # 3. 转发到动态变量对应的服务组
+        proxy_pass http://$group;
+    }
 }
 ```
 
-**工作流程**：
+### 3. 验证
+*   **普通访问**：访问 `http://localhost:83/api/` -> 返回旧版数据。
+*   **灰度访问**：在浏览器控制台设置 `document.cookie="version=2.0"`，再次刷新 -> 返回新版数据。
 
-1.  大多数用户的请求没有特殊 Cookie，`$group` 变量的值为 `stable_server`，流量进入稳定版应用。
-2.  测试人员或一小部分用户可以通过浏览器插件或开发者工具手动设置一个名为 `version`，值为 `canary` 的 Cookie。
-3.  当他们的请求到达 Nginx 时，`map` 指令匹配成功，`$group` 变量的值变为 `canary_server`，流量被引导至新版本应用。
-4.  通过监控新版本应用的日志和性能指标，确认无误后，可以逐步修改 `default` 指向 `canary_server`，完成全量发布。
+![](https://cdn.nlark.com/yuque/0/2023/png/21596389/1688401887308-84b670a6-34f7-44ee-ada0-2513025535ae.png)
 
-### 4.3 配置 HTTPS (SSL/TLS 终止)
+---
 
-在生产环境中，全站 HTTPS 是标准实践。Nginx 是执行 SSL/TLS 终止的理想选择。
+## 总结
 
-```nginx
-server {
-  listen 80;
-  server_name yourdomain.com www.yourdomain.com;
+通过这篇文章，我们不仅学会了如何在 Docker 中运行 Nginx，还深入理解了它的核心配置：
 
-  # 将所有 HTTP 请求永久重定向到 HTTPS
-  return 301 https://$host$request_uri;
-}
+1.  **静态托管**：利用 `root` 和 `alias` 灵活管理文件。
+2.  **反向代理**：通过 `proxy_pass` 隐藏后端架构，提升安全性。
+3.  **负载均衡**：利用 `upstream` 实现高可用和扩展性。
+4.  **灰度发布**：利用 Cookie 和变量控制流量，降低发布风险。
 
-server {
-  listen 443 ssl http2; # 监听 443 端口，启用 SSL 和 HTTP/2
-  server_name yourdomain.com www.yourdomain.com;
-
-  # SSL 证书配置 (推荐使用 Let's Encrypt)
-  ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
-  ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
-
-  # SSL 性能优化配置
-  ssl_protocols TLSv1.2 TLSv1.3;
-  ssl_ciphers 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384';
-  ssl_prefer_server_ciphers off;
-
-  location / {
-    proxy_pass http://localhost:3000;
-    # 确保 X-Forwarded-Proto 被正确设置为 "https"
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_http_version 1.1;
-    # 其他 header 设置...
-  }
-}
-```
-
-此配置完成了两件事：
-1.  创建一个 `server` 块，将所有来自 80 端口的 HTTP 流量通过 301 重定向到 HTTPS。
-2.  主要的 `server` 块监听 443 端口，配置 SSL 证书，并像之前一样将解密后的流量代理给 NestJS。
+Nginx 是现代 Web 架构的基石，掌握它，你的技术视野将更加开阔。
