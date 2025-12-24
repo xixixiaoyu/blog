@@ -82,6 +82,7 @@ Nginx 默认的静态文件存放于容器内的 `/usr/share/nginx/html/` 目录
 5.  `location /uri`：**普通前缀匹配**。
 
 **示例：**
+
 ```nginx
 server {
   listen 80;
@@ -108,13 +109,14 @@ server {
 这两个指令都用于指定文件路径，但拼接逻辑完全不同。
 
 *   **root (追加)**：
+    
     ```nginx
     location /images/ {
       root /data;
     }
     ```
     请求 `/images/cat.png` -> 寻找 `/data/images/cat.png` (路径 = root + uri)。
-
+    
 *   **alias (替换)**：
     ```nginx
     location /images/ {
@@ -181,6 +183,7 @@ docker exec nginx1 nginx -s reload
 在 Nginx 中使用 `upstream` 定义服务器组。
 
 **策略一：轮询（默认）与权重**
+
 ```nginx
 upstream nest_server {
   server 192.168.1.6:3000 weight=1;
