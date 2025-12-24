@@ -30,26 +30,33 @@ Nginx 默认的静态文件存放于容器内的 `/usr/share/nginx/html/` 目录
 **步骤演示：**
 
 1.  **复制出来**：把容器内的 html 目录复制到宿主机。
+    
     ```bash
     # 语法：docker cp <容器ID/名称>:<容器内路径> <宿主机路径>
     docker cp nginx-test:/usr/share/nginx/html ~/nginx-html
     ```
     ![](https://cdn.nlark.com/yuque/0/2024/png/21596389/1717086374562-f150fd91-f512-47ea-b38e-2bd021597eb0.png)
-
+    
 2.  **修改内容**：在宿主机新建 `test1.html` 和 `test2.html`。
+    
     ```bash
     cd ~/nginx-html
     echo 'hello test1' > test1.html
     echo 'hello test2' > test2.html
     ```
-
+    
 3.  **复制回去**：将修改后的目录覆盖回容器。
+    
     ```bash
     docker cp ~/nginx-html nginx-test:/usr/share/nginx/html
     ```
     ![](https://cdn.nlark.com/yuque/0/2024/png/21596389/1717086763051-bfde005f-c743-4364-b8d4-e9d05a3c45c5.png)
 
-现在访问 `http://localhost:81/test1.html`，即可看到新页面。这证明只要文件位于 `/usr/share/nginx/html` 下，Nginx 就能默认访问到。
+现在访问 `http://localhost:81/test1.html`，即可看到新页面：
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1717086920341-86f6979f-aaa5-400e-92d6-09293fbeabbe.png?x-oss-process=image%2Fformat%2Cwebp)
+
+这证明只要文件位于 `/usr/share/nginx/html` 下，Nginx 就能默认访问到。
 
 ---
 
