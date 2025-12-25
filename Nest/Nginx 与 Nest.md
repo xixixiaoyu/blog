@@ -174,8 +174,8 @@ server {
 
 将配置复制回容器并重载：
 ```bash
-docker cp default.conf nginx1:/etc/nginx/conf.d/default.conf
-docker exec nginx1 nginx -s reload
+docker cp default.conf nginx-test:/etc/nginx/conf.d/default.conf
+docker exec nginx-test nginx -s reload
 ```
 
 此时，访问 `http://localhost:81/api`，实际上就是访问了 NestJS。
@@ -253,12 +253,12 @@ upstream nest_server {
 现在我们需要定义两组服务器，并使用 `map` 或 `if` 指令进行分流。
 
 ```nginx
-# 1. 定义两组服务
-upstream version1.0_server {
+# 1. 定义两组服务（注意：upstream 名称不能包含小数点）
+upstream v1_server {
     server 192.168.0.100:3000; # 旧版
 }
 
-upstream version2.0_server {
+upstream v2_server {
     server 192.168.0.100:3001; # 新版
 }
 
@@ -267,11 +267,11 @@ server {
     server_name localhost;
 
     # 2. 动态设置变量 $group
-    set $group "version1.0_server"; # 默认走旧版
+    set $group "v1_server"; # 默认走旧版
 
     # 如果 Cookie 中包含 version=2.0，则走新版
-    if ($http_cookie ~* "version=2.0"){
-        set $group version2.0_server;
+    if ($http_cookie ~* "version=2\.0(;|$)"){
+        set $group "v2_server";
     }
 
     location ^~ /api {
@@ -285,7 +285,7 @@ server {
 ```
 
 ### 3. 验证
-*   **普通访问**：访问 `http://localhost:83/api/` -> 返回旧版数据。
+*   **普通访问**：访问 `http://localhost:81/api/` -> 返回旧版数据。
 *   **灰度访问**：在浏览器控制台设置 `document.cookie="version=2.0"`，再次刷新 -> 返回新版数据。
 
 ![](https://cdn.nlark.com/yuque/0/2023/png/21596389/1688401887308-84b670a6-34f7-44ee-ada0-2513025535ae.png)
