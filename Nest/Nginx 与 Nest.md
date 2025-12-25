@@ -164,8 +164,8 @@ server {
   server_name localhost;
 
   location ^~ /api {
-    # 注意：在 Docker 中，不能直接写 localhost，需使用宿主机 IP
-    proxy_pass http://192.168.1.6:3000;
+    # 注意：在 Docker 中，不能直接写 localhost，需使用 host.docker.internal（Docker Desktop）或宿主机 IP
+    proxy_pass http://host.docker.internal:3000;
   }
 }
 ```
@@ -204,8 +204,8 @@ Nginx 支持多种负载均衡策略，主要包括：
 
 ```nginx
 upstream nest_server {
-  server 192.168.1.6:3000 weight=1;
-  server 192.168.1.6:3001 weight=2; # 权重越高，分配的请求越多
+  server host.docker.internal:3000 weight=1;
+  server host.docker.internal:3001 weight=2; # 权重越高，分配的请求越多
 }
 
 server {
@@ -223,8 +223,8 @@ server {
 ```nginx
 upstream nest_server {
   ip_hash; # 保证同一个 IP 的用户总是访问同一台服务器
-  server 192.168.1.6:3000;
-  server 192.168.1.6:3001;
+  server host.docker.internal:3000;
+  server host.docker.internal:3001;
 }
 ```
 这解决了 Session 丢失的问题，但在现代无状态架构（JWT）中，轮询更为常用。
@@ -253,11 +253,11 @@ upstream nest_server {
 ```nginx
 # 1. 定义两组服务（注意：upstream 名称不能包含小数点）
 upstream v1_server {
-    server 192.168.1.6:3000; # 旧版
+    server host.docker.internal:3000; # 旧版
 }
 
 upstream v2_server {
-    server 192.168.1.6:3001; # 新版
+    server host.docker.internal:3001; # 新版
 }
 
 server {
@@ -273,7 +273,7 @@ server {
     }
 
     location ^~ /api {
-        # 去掉 URL 中的 /api 前缀
+        # 去掉 URL 中的 /api 前缀（如果后端需要保留 /api，则删除此行）
         rewrite ^/api/(.*)$ /$1 break;
         
         # 3. 转发到动态变量对应的服务组
