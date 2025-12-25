@@ -253,11 +253,11 @@ upstream nest_server {
 ```nginx
 # 1. 定义两组服务（注意：upstream 名称不能包含小数点）
 upstream v1_server {
-    server 192.168.0.100:3000; # 旧版
+    server 192.168.1.6:3000; # 旧版
 }
 
 upstream v2_server {
-    server 192.168.0.100:3001; # 新版
+    server 192.168.1.6:3001; # 新版
 }
 
 server {
@@ -286,7 +286,7 @@ server {
 
 创建个 nest 项目开启两个端口，一个 3000，一个 3001：
 
-分别访问返回 Hello111 和 Hello 222：
+分别访问返回 Hello 111 和 Hello 222：
 
 ![img](https://cdn.nlark.com/yuque/0/2023/png/21596389/1688399468012-ce6061c1-8969-45de-b8cc-c8329b4de143.png)![img](https://cdn.nlark.com/yuque/0/2023/png/21596389/1688399477120-dff0f3c0-4f66-4ec4-adb9-fda11f753f83.png)
 
@@ -294,7 +294,7 @@ server {
 
 ### 4. 验证
 
-*   **普通访问**：访问 `http://localhost:81/api/` -> 返回旧版数据。
+*   **普通访问**：访问 `http://localhost:81/api` -> 返回旧版数据。
 *   **灰度访问**：在浏览器控制台设置 `document.cookie="version=2.0"`，再次刷新 -> 返回新版数据。
 
 ![](https://cdn.nlark.com/yuque/0/2023/png/21596389/1688401887308-84b670a6-34f7-44ee-ada0-2513025535ae.png)
