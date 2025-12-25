@@ -50,9 +50,15 @@ Nginx 默认的静态文件存放于容器内的 `/usr/share/nginx/html/` 目录
     ```
     ![](https://cdn.nlark.com/yuque/0/2024/png/21596389/1717086763051-bfde005f-c743-4364-b8d4-e9d05a3c45c5.png)
 
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1717086792898-42222056-7462-42b3-b456-fdfdbd433c43.png?x-oss-process=image%2Fformat%2Cwebp)
+
 现在访问 `http://localhost:81/test1.html`，即可看到新页面：
 
 ![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1717086920341-86f6979f-aaa5-400e-92d6-09293fbeabbe.png?x-oss-process=image%2Fformat%2Cwebp)
+
+访问 `http://localhost:81/test2.html`
+
+![image.png](https://cdn.nlark.com/yuque/0/2024/png/21596389/1717086936160-2eb9b11a-ed0d-4594-8dde-20d9beec4207.png?x-oss-process=image%2Fformat%2Cwebp)
 
 这证明只要文件位于 `/usr/share/nginx/html` 下，Nginx 就能默认访问到。
 
@@ -67,12 +73,17 @@ Nginx 默认的静态文件存放于容器内的 `/usr/share/nginx/html/` 目录
 
 ![](https://cdn.nlark.com/yuque/0/2023/png/21596389/1688307846529-e7669414-74ea-48e9-b3da-a3da9f18e88a.png)
 
+![image.png](https://cdn.nlark.com/yuque/0/2023/png/21596389/1688307922112-78b0e3b5-1188-426d-88ed-765bd6df1e4a.png?x-oss-process=image%2Fformat%2Cwebp)
+
 我们重点关注 `/etc/nginx/conf.d/*.conf`，这里通常定义了具体的 `server`（虚拟主机）和路由规则。
+
+虚拟主机就是 Nginx 可以通过**识别不同的域名**，或者**监听不同的端口**，来决定使用哪一套配置文件来响应请求。
 
 ### 2. Location 路由匹配规则
 `location` 指令决定了 Nginx 如何处理不同的 URL 请求。
 
 **匹配优先级（从高到低）：**
+
 1.  `location = /uri`：**精确匹配**。
 2.  `location ^~ /uri`：**前缀匹配**（高优先级），一旦匹配成功，不再检查正则。
 3.  `location ~ /pattern`：**正则匹配**（区分大小写）。
@@ -116,6 +127,7 @@ server {
     请求 `/images/cat.png` -> 寻找 `/data/images/cat.png` (路径 = root + uri)。
     
 *   **alias (替换)**：
+    
     ```nginx
     location /images/ {
       alias /data/pictures/;
@@ -174,6 +186,16 @@ docker exec nginx1 nginx -s reload
 
 当一台服务器扛不住流量时，我们需要多台服务器分担，这就是负载均衡。
 
+Nginx 支持多种负载均衡策略，主要包括：
+
+1. **轮询**：默认方式。请求按时间顺序逐一分配到不同的后端服务器，每个请求按顺序逐一分发。
+2. **加权轮询**：基于轮询策略，支持为每台后端服务器设置权重。权重越高，被分配到的请求概率越大，适用于服务器性能不均的场景。
+3. **IP 哈希**：根据客户端的 IP 地址计算哈希值来分配请求。确保来自同一 IP 的请求始终落在同一台服务器上，从而解决会话持久性问题。
+4. **最少连接**：智能分配请求，优先选择当前**活跃连接数最少**的后端服务器。该策略能动态平衡负载，特别适用于请求处理时长差异较大的场景。
+5. 第三方策略
+   - **Fair**：根据后端服务器的**响应时间**来分配请求，响应时间越短的服务器优先获得新请求。**注意**：这并非 Nginx 官方内置模块，需要安装第三方插件 `nginx-upstream-fair`。
+   - **Url Hash**：根据请求的 URL 进行哈希分配，使相同的 URL 定向到同一台服务器，常用于提高缓存服务器的命中率。
+
 ### 1. 准备环境
 启动两个 NestJS 实例，分别监听 `3000` 和 `3001` 端口，并修改返回值以便区分（如 "Hello 111", "Hello 222"）。
 
@@ -199,6 +221,7 @@ server {
 *可以看到请求按 1:2 的比例分发。*
 
 **策略二：IP Hash**
+
 ```nginx
 upstream nest_server {
   ip_hash; # 保证同一个 IP 的用户总是访问同一台服务器
@@ -222,7 +245,12 @@ upstream nest_server {
 3.  根据 Cookie 将流量转发到不同的 Upstream（新版或旧版）。
 
 ### 2. Nginx 配置实现
-我们需要定义两组服务器，并使用 `map` 或 `if` 指令进行分流。
+
+之前负载均衡是这样配的：
+
+![img](https://cdn.nlark.com/yuque/0/2023/png/21596389/1688401482727-76b12af5-9508-43d8-b4b8-6c16bd2089bc.png?x-oss-process=image%2Fformat%2Cwebp)
+
+现在我们需要定义两组服务器，并使用 `map` 或 `if` 指令进行分流。
 
 ```nginx
 # 1. 定义两组服务
@@ -266,11 +294,7 @@ server {
 
 ## 总结
 
-通过这篇文章，我们不仅学会了如何在 Docker 中运行 Nginx，还深入理解了它的核心配置：
-
 1.  **静态托管**：利用 `root` 和 `alias` 灵活管理文件。
 2.  **反向代理**：通过 `proxy_pass` 隐藏后端架构，提升安全性。
 3.  **负载均衡**：利用 `upstream` 实现高可用和扩展性。
 4.  **灰度发布**：利用 Cookie 和变量控制流量，降低发布风险。
-
-Nginx 是现代 Web 架构的基石，掌握它，你的技术视野将更加开阔。
