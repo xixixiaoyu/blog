@@ -273,24 +273,22 @@ upstream v2_server {
     server host.docker.internal:3001; # 新版
 }
 
+# 2. 使用 map 指令根据 Cookie 动态选择上游（推荐做法）
+map $http_cookie $backend_group {
+    default "v1_server";  # 默认走旧版
+    "~*version=2\.0(;|$)" "v2_server";  # Cookie 包含 version=2.0 时走新版
+}
+
 server {
     listen 80;
     server_name localhost;
-
-    # 2. 动态设置变量 $group
-    set $group "v1_server"; # 默认走旧版
-
-    # 如果 Cookie 中包含 version=2.0，则走新版
-    if ($http_cookie ~* "version=2\.0(;|$)"){
-        set $group "v2_server";
-    }
 
     location ^~ /api {
         # 去掉 URL 中的 /api 前缀（如果后端需要保留 /api，则删除此行）
         rewrite ^/api/(.*)$ /$1 break;
         
         # 3. 转发到动态变量对应的服务组
-        proxy_pass http://$group;
+        proxy_pass http://$backend_group;
     }
 }
 ```
