@@ -160,7 +160,7 @@ npm run start:dev
 
 ```nginx
 server {
-  listen 80;
+  listen 80;  # 容器内部监听 80 端口
   server_name localhost;
 
   location ^~ /api {
@@ -176,7 +176,20 @@ docker cp default.conf nginx-test:/etc/nginx/conf.d/default.conf
 docker exec nginx-test nginx -s reload
 ```
 
-此时，访问 `http://localhost:81/api`，实际上就是访问了 NestJS。
+**请求流程**：
+```
+浏览器访问 http://localhost:81/api
+    ↓
+Docker 端口映射：宿主机 81 → 容器 80
+    ↓
+Nginx 容器接收请求（监听 80）
+    ↓
+location ^~ /api 匹配成功
+    ↓
+proxy_pass 转发到 http://host.docker.internal:3000
+    ↓
+NestJS 处理请求并返回响应
+```
 
 ---
 
